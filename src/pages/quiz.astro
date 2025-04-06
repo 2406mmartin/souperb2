@@ -270,8 +270,8 @@ const userId = session.user.id;
       button.textContent = option;
       button.className = `p-3 rounded-md text-sm transition-all duration-150 ${
         selected
-          ? 'bg-mustard text-creme'
-          : 'bg-satured-creme text-mustard hover:bg-mustard hover:text-creme'
+          ? 'bg-new-blue text-creme'
+          : 'bg-satured-creme text-new-blue hover:bg-new-blue hover:text-creme'
       }`;
       return button;
     }
@@ -291,18 +291,18 @@ const userId = session.user.id;
           if (question.type === 'single') {
             // For single selection, clear previous selection
             optionsContainer.querySelectorAll('button').forEach(btn => {
-              btn.className = btn.className.replace('bg-mustard text-creme', 'bg-satured-creme text-mustard');
+              btn.className = btn.className.replace('bg-new-blue text-creme', 'bg-satured-creme text-new-blue');
             });
             answers[currentQuestion] = [option];
-            button.className = button.className.replace('bg-satured-creme text-mustard', 'bg-mustard text-creme');
+            button.className = button.className.replace('bg-satured-creme text-new-blue', 'bg-new-blue text-creme');
           } else {
             // For multiple selection, toggle selection
             if (answers[currentQuestion].includes(option)) {
               answers[currentQuestion] = answers[currentQuestion].filter(a => a !== option);
-              button.className = button.className.replace('bg-mustard text-creme', 'bg-satured-creme text-mustard');
+              button.className = button.className.replace('bg-new-blue text-creme', 'bg-satured-creme text-new-blue');
             } else {
               answers[currentQuestion].push(option);
-              button.className = button.className.replace('bg-satured-creme text-mustard', 'bg-mustard text-creme');
+              button.className = button.className.replace('bg-satured-creme text-new-blue', 'bg-new-blue text-creme');
             }
           }
         });
