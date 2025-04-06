@@ -38,7 +38,7 @@ const userId = session.user.id;
     <div class="flex-1 pt-16 pb-4 px-4 max-w-md mx-auto w-full">
       <!-- Progress bar -->
       <div class="w-full bg-satured-creme rounded-full h-2 mb-8">
-        <div id="progress-bar" class="bg-mustard h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        <div id="progress-bar" class="bg-new-blue h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
       </div>
 
       <!-- Welcome screen -->
@@ -52,7 +52,7 @@ const userId = session.user.id;
 
       <!-- Quiz questions -->
       <div id="quiz-container" class="hidden">
-        <h2 id="question-text" class="text-xl font-bold text-true-blue mb-6 text-center"></h2>
+        <h2 id="question-text" class="text-2xl font-bold text-true-blue mb-6 text-center"></h2>
         <h2 id="question-text" class="text-lg -mt-4 text-true-blue mb-6 text-center">check all that apply</h2>
         <div id="options-container" class="grid gap-3"></div>
       </div>
@@ -271,7 +271,7 @@ const userId = session.user.id;
       button.className = `p-3 rounded-md text-sm transition-all duration-150 ${
         selected
           ? 'bg-mustard text-creme'
-          : 'bg-new-blue text-light-blue hover:bg-mustard hover:text-creme'
+          : 'bg-satured-creme text-new-blue hover:bg-new-blue hover:text-creme'
       }`;
       return button;
     }
