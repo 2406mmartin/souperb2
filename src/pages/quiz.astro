@@ -60,14 +60,14 @@ const userId = session.user.id;
       <div id="results" class="hidden">
         <h2 class="text-2xl font-bold text-mustard mb-4">Your Perfect Soup Match!</h2>
         <div id="recommendation" class="bg-satured-creme rounded-lg p-6 shadow-lg flex flex-col justify-center">
-          <img id="soup-image" class="">
+          <img id="soup-image" class="h-24 w-fit mb-2">
           <h3 id="soup-name" class="text-xl font-semibold text-mustard mb-2"></h3>
           <p id="soup-description" class="text-super-saturated-creme mb-4"></p>
           <div class="flex justify-between items-center">
-            <button onclick="restartQuiz()" class="text-orange hover:text-mustard transition-all duration-150">
+            <button onclick="restartQuiz()" class="text-orange hover:text-mustard transition-all duration-150 cursor-pointer">
               Take Quiz Again
             </button>
-            <button id="can-soup" class="bg-mustard text-creme px-4 py-2 rounded-md hover:bg-dark-orange transition-all duration-150">
+            <button id="can-soup" class="bg-mustard text-creme px-4 py-2 rounded-md hover:bg-dark-orange transition-all duration-150 cursor-pointer">
               Can This Soup
             </button>
           </div>
