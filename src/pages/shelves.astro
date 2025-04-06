@@ -1,7 +1,45 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { supabase } from "../lib/supabase";
-import type { SoupShelf } from '../lib/supabase';
+
+// Define types
+interface Soup {
+  id: string;
+  name: string;
+  description: string;
+  ingredients: string[];
+  preparation_time: string;
+  dietary_restrictions: string[];
+  symptoms_addressed: string[];
+  consistency: string;
+  spiciness: string;
+  appetite_level: string;
+}
+
+interface SoupInShelf {
+  id: string;
+  shelf_id: string;
+  soup_id: string;
+  added_at: string;
+}
+
+interface Shelf {
+  id: string;
+  name: string;
+  description: string;
+  user_id: string;
+  is_public: boolean;
+  likes_count: number;
+  soups: (SoupInShelf & { soup: Soup })[];
+}
+
+// Add new type for shelf likes
+interface ShelfLike {
+  id: string;
+  shelf_id: string;
+  user_id: string;
+  created_at: string;
+}
 
 const { cookies } = Astro;
 const accessToken = cookies.get("sb-access-token");
@@ -23,98 +61,203 @@ if (sessionError || !session) {
 
 const userId = session.user.id;
 
-// Fetch user's shelves
-const { data: userShelves, error: userShelvesError } = await supabase
+// Get user's shelves with like status
+const { data: shelves, error: shelvesError } = await supabase
   .from('soup_shelves')
-  .select('*')
-  .eq('user_id', session.user.id)
-  .order('created_at', { ascending: false });
+  .select(`
+    *,
+    shelf_likes!inner (
+      user_id
+    )
+  `)
+  .eq('user_id', userId);
 
-// Fetch popular public shelves
+if (shelvesError) {
+  console.error('Error fetching shelves:', shelvesError);
+}
+
+// Get soups for each shelf
+const shelvesWithSoups = await Promise.all(
+  (shelves || []).map(async (shelf) => {
+    // First get the soup IDs in this shelf
+    const { data: soupsInShelf, error: soupsInShelfError } = await supabase
+      .from('soups_in_shelf')
+      .select('*')
+      .eq('shelf_id', shelf.id);
+
+    if (soupsInShelfError) {
+      console.error(`Error fetching soups_in_shelf for shelf ${shelf.id}:`, soupsInShelfError);
+      return { ...shelf, soups: [] };
+    }
+
+    // Then get the actual soup data for each soup ID
+    const soupsWithData = await Promise.all(
+      (soupsInShelf || []).map(async (soupInShelf) => {
+        const { data: soup, error: soupError } = await supabase
+          .from('soups')
+          .select('*')
+          .eq('id', soupInShelf.soup_id)
+          .single();
+
+        if (soupError) {
+          console.error(`Error fetching soup ${soupInShelf.soup_id}:`, soupError);
+          return { ...soupInShelf, soup: null };
+        }
+
+        return { ...soupInShelf, soup };
+      })
+    );
+
+    return { ...shelf, soups: soupsWithData.filter(s => s.soup !== null) };
+  })
+);
+
+// Get public shelves with like status
 const { data: publicShelves, error: publicShelvesError } = await supabase
   .from('soup_shelves')
-  .select('*, profiles(username)')
+  .select(`
+    *,
+    profiles (
+      username
+    ),
+    shelf_likes!inner (
+      user_id
+    )
+  `)
   .eq('is_public', true)
   .order('likes_count', { ascending: false })
   .limit(5);
 
 ---
 
-<Layout title="Soup Shelves">
-  <div class="min-h-screen bg-creme">
+<Layout title="My Soup Shelves">
+  <div class="min-h-screen flex flex-col bg-bue-blue bg-[url(background2.png)] bg-size-[auto_150px] diagonal-scroll">
     <!-- Header -->
     <header class="fixed top-0 w-full p-4 flex justify-between items-center bg-creme border-b border-mustard z-10">
-      <div class="flex items-center gap-4">
-        <a href="/" class="text-sm text-orange hover:text-mustard transition-all duration-150">
-          Back to Home
+      <a href="/" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+        Back to Home
+      </a>
+      <h1 class="text-xl font-semibold text-mustard">My Soup Shelves</h1>
+      <div class="flex gap-4">
+        <button id="create-shelf" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+          Create Shelf
+        </button>
+        <a href="/quiz" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+          Take Quiz
         </a>
-        <h1 class="text-xl font-semibold text-mustard">Soup Shelves</h1>
       </div>
-      <button id="create-shelf" class="text-sm text-orange hover:text-mustard transition-all duration-150">
-        Create New Shelf
-      </button>
     </header>
 
     <!-- Main content -->
-    <div class="pt-20 px-4 max-w-4xl mx-auto">
-      <!-- User's Shelves -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-mustard mb-4">Your Shelves</h2>
-        <div class="grid gap-4 md:grid-cols-2">
-          {userShelves?.map((shelf: SoupShelf) => (
-            <div class="bg-satured-creme rounded-lg p-4 shadow-lg">
-              <div class="flex justify-between items-start mb-2">
-                <h3 class="text-lg font-medium text-mustard">{shelf.name}</h3>
-                <div class="flex items-center gap-2">
-                  {shelf.is_public && (
-                    <span class="text-xs text-super-saturated-creme bg-mustard px-2 py-1 rounded-full">Public</span>
-                  )}
-                  <span class="text-sm text-super-saturated-creme">❤️ {shelf.likes_count}</span>
+    <div class="flex-1 pt-16 pb-4 px-4 max-w-4xl mx-auto w-full">
+      {shelvesWithSoups.length === 0 ? (
+        <div class="text-center mt-8">
+          <p class="text-true-blue mb-4">You don't have any soup shelves yet!</p>
+          <a href="/quiz" class="bg-true-blue hover:bg-black text-bue-blue hover:text-white py-2 px-4 rounded-md transition-all duration-150">
+            Take the Quiz to Get Started
+          </a>
+        </div>
+      ) : (
+        <div class="grid gap-6">
+          {shelvesWithSoups.map((shelf: Shelf) => (
+            <div class="bg-satured-creme rounded-lg p-6 shadow-lg">
+              <div class="flex justify-between items-center mb-4">
+                <div>
+                  <h2 class="text-xl font-semibold text-mustard">{shelf.name}</h2>
+                  <p class="text-sm text-super-saturated-creme">
+                    {shelf.soups.length} {shelf.soups.length === 1 ? 'soup' : 'soups'}
+                  </p>
+                </div>
+                <div class="flex items-center gap-4">
+                  <button 
+                    class="text-sm text-orange hover:text-mustard transition-all duration-150"
+                    data-shelf-id={shelf.id}
+                    data-is-public={shelf.is_public}
+                  >
+                    {shelf.is_public ? 'Make Private' : 'Make Public'}
+                  </button>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-super-saturated-creme">❤️ {shelf.likes_count}</span>
+                  </div>
                 </div>
               </div>
-              <p class="text-super-saturated-creme text-sm mb-3">{shelf.description}</p>
-              <div class="flex justify-between items-center">
-                <a href={`/shelf/${shelf.id}`} class="text-sm text-orange hover:text-mustard transition-all duration-150">
-                  View Shelf →
-                </a>
-                <button class="text-sm text-super-saturated-creme hover:text-mustard transition-all duration-150" data-shelf-id={shelf.id}>
-                  {shelf.is_public ? 'Make Private' : 'Make Public'}
-                </button>
-              </div>
+              <p class="text-super-saturated-creme mb-4">{shelf.description}</p>
+              
+              {shelf.soups.length === 0 ? (
+                <p class="text-center text-super-saturated-creme py-4">
+                  No soups in this shelf yet
+                </p>
+              ) : (
+                <div class="grid gap-4">
+                  {shelf.soups.map((soupInShelf) => (
+                    <div class="bg-creme rounded-lg p-4">
+                      <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-semibold text-mustard">{soupInShelf.soup.name}</h3>
+                        <span class="text-sm text-super-saturated-creme">{soupInShelf.soup.preparation_time}</span>
+                      </div>
+                      <p class="text-super-saturated-creme mb-3">{soupInShelf.soup.description}</p>
+                      
+                      <div class="flex flex-wrap gap-2 mb-3">
+                        {soupInShelf.soup.symptoms_addressed.map((symptom: string) => (
+                          <span class="bg-mustard text-creme text-xs px-2 py-1 rounded-full">
+                            {symptom}
+                          </span>
+                        ))}
+                      </div>
+                      
+                      <div class="flex flex-wrap gap-2">
+                        <span class="bg-true-blue text-bue-blue text-xs px-2 py-1 rounded-full">
+                          {soupInShelf.soup.consistency}
+                        </span>
+                        <span class="bg-true-blue text-bue-blue text-xs px-2 py-1 rounded-full">
+                          {soupInShelf.soup.spiciness}
+                        </span>
+                        <span class="bg-true-blue text-bue-blue text-xs px-2 py-1 rounded-full">
+                          {soupInShelf.soup.appetite_level}
+                        </span>
+                        {soupInShelf.soup.dietary_restrictions.map((restriction: string) => (
+                          <span class="bg-true-blue text-bue-blue text-xs px-2 py-1 rounded-full">
+                            {restriction}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
-        {(!userShelves || userShelves.length === 0) && (
-          <p class="text-super-saturated-creme text-center py-8">
-            You haven't created any shelves yet. Start by creating one!
-          </p>
-        )}
-      </section>
+      )}
 
-      <!-- Popular Public Shelves -->
-      <section>
-        <h2 class="text-xl font-semibold text-mustard mb-4">Popular Shelves</h2>
-        <div class="grid gap-4 md:grid-cols-2">
-          {publicShelves?.map((shelf: any) => (
-            <div class="bg-satured-creme rounded-lg p-4 shadow-lg">
-              <div class="flex justify-between items-start mb-2">
-                <h3 class="text-lg font-medium text-mustard">{shelf.name}</h3>
-                <span class="text-sm text-super-saturated-creme">❤️ {shelf.likes_count}</span>
+      {/* Public Shelves Section */}
+      {publicShelves && publicShelves.length > 0 && (
+        <div class="mt-12">
+          <h2 class="text-xl font-semibold text-mustard mb-6">Popular Public Shelves</h2>
+          <div class="grid gap-6">
+            {publicShelves.map((shelf: any) => (
+              <div class="bg-satured-creme rounded-lg p-6 shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 class="text-lg font-semibold text-mustard">{shelf.name}</h3>
+                    <p class="text-sm text-super-saturated-creme">by {shelf.profiles?.username}</p>
+                  </div>
+                  <div class="flex items-center gap-4">
+                    <button 
+                      class="like-button text-sm text-orange hover:text-mustard transition-all duration-150"
+                      data-shelf-id={shelf.id}
+                    >
+                      Like Shelf
+                    </button>
+                    <span class="text-sm text-super-saturated-creme">❤️ {shelf.likes_count}</span>
+                  </div>
+                </div>
+                <p class="text-super-saturated-creme mb-4">{shelf.description}</p>
               </div>
-              <p class="text-super-saturated-creme text-sm mb-1">{shelf.description}</p>
-              <p class="text-xs text-super-saturated-creme mb-3">by {shelf.profiles?.username}</p>
-              <div class="flex justify-between items-center">
-                <a href={`/shelf/${shelf.id}`} class="text-sm text-orange hover:text-mustard transition-all duration-150">
-                  View Shelf →
-                </a>
-                <button class="like-button text-sm text-super-saturated-creme hover:text-mustard transition-all duration-150" data-shelf-id={shelf.id}>
-                  Like Shelf
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </section>
+      )}
     </div>
   </div>
 
@@ -183,10 +326,12 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
       if (!(nameInput instanceof HTMLInputElement) || 
           !(descriptionInput instanceof HTMLTextAreaElement) || 
           !(isPublicInput instanceof HTMLInputElement)) {
+        console.error('Form inputs not found or invalid');
         return;
       }
 
       try {
+        console.log('Creating new shelf...');
         const { data, error } = await supabase
           .from('soup_shelves')
           .insert([
@@ -200,38 +345,54 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
           ])
           .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
 
+        if (!data) {
+          throw new Error('No data returned from shelf creation');
+        }
+
+        console.log('Shelf created successfully:', data);
         // Refresh the page to show new shelf
         window.location.reload();
       } catch (error) {
         console.error('Error creating shelf:', error);
-        alert('Failed to create shelf. Please try again.');
+        alert(`Failed to create shelf: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
 
     // Handle shelf privacy toggles
     document.querySelectorAll('[data-shelf-id]').forEach(button => {
-      button.addEventListener('click', async (e) => {
-        const target = e.currentTarget;
-        const shelfId = target instanceof HTMLButtonElement ? target.dataset.shelfId : null;
-        const isCurrentlyPublic = target instanceof HTMLButtonElement ? target.textContent?.includes('Make Private') : false;
+      if (button.hasAttribute('data-is-public')) {
+        button.addEventListener('click', async (e) => {
+          const target = e.currentTarget;
+          const shelfId = target instanceof HTMLButtonElement ? target.dataset.shelfId : null;
+          const isCurrentlyPublic = target instanceof HTMLButtonElement ? target.dataset.isPublic === 'true' : false;
 
-        try {
-          const { error } = await supabase
-            .from('soup_shelves')
-            .update({ is_public: !isCurrentlyPublic })
-            .eq('id', shelfId);
+          try {
+            const { error } = await supabase
+              .from('soup_shelves')
+              .update({ is_public: !isCurrentlyPublic })
+              .eq('id', shelfId);
 
-          if (error) throw error;
+            if (error) throw error;
 
-          // Refresh the page to show updated status
-          window.location.reload();
-        } catch (error) {
-          console.error('Error updating shelf:', error);
-          alert('Failed to update shelf. Please try again.');
-        }
-      });
+            // Update the button text and data attribute
+            if (target instanceof HTMLButtonElement) {
+              target.textContent = isCurrentlyPublic ? 'Make Public' : 'Make Private';
+              target.dataset.isPublic = (!isCurrentlyPublic).toString();
+            }
+
+            // Refresh the page to show updated status
+            window.location.reload();
+          } catch (error) {
+            console.error('Error updating shelf:', error);
+            alert('Failed to update shelf. Please try again.');
+          }
+        });
+      }
     });
 
     // Handle likes
@@ -241,22 +402,56 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
         const shelfId = target instanceof HTMLButtonElement ? target.dataset.shelfId : null;
 
         try {
-          const { error } = await supabase
+          // First check if user has already liked this shelf
+          const { data: existingLike, error: checkError } = await supabase
             .from('shelf_likes')
-            .insert([
-              {
-                shelf_id: shelfId,
-                user_id: userId
-              }
-            ]);
+            .select('*')
+            .eq('shelf_id', shelfId)
+            .eq('user_id', userId)
+            .single();
 
-          if (error) throw error;
+          if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+          }
+
+          if (existingLike) {
+            // Unlike the shelf
+            const { error: unlikeError } = await supabase
+              .from('shelf_likes')
+              .delete()
+              .eq('id', existingLike.id);
+
+            if (unlikeError) throw unlikeError;
+
+            // Update likes count
+            const { error: updateError } = await supabase
+              .from('soup_shelves')
+              .update({ likes_count: supabase.rpc('decrement_likes_count') })
+              .eq('id', shelfId);
+
+            if (updateError) throw updateError;
+          } else {
+            // Like the shelf
+            const { error: likeError } = await supabase
+              .from('shelf_likes')
+              .insert([{ shelf_id: shelfId, user_id: userId }]);
+
+            if (likeError) throw likeError;
+
+            // Update likes count
+            const { error: updateError } = await supabase
+              .from('soup_shelves')
+              .update({ likes_count: supabase.rpc('increment_likes_count') })
+              .eq('id', shelfId);
+
+            if (updateError) throw updateError;
+          }
 
           // Refresh the page to show updated likes
           window.location.reload();
         } catch (error) {
-          console.error('Error liking shelf:', error);
-          alert('Failed to like shelf. Please try again.');
+          console.error('Error handling like:', error);
+          alert('Failed to update like. Please try again.');
         }
       });
     });

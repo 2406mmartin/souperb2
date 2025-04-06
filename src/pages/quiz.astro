@@ -75,10 +75,75 @@ const userId = session.user.id;
     </div>
   </div>
 
-  <script define:vars={{ userId }}>
-    // Access Supabase client from window object
-    const supabase = window.supabase;
+  <script>
+    // Expose Supabase client to window
+    interface SupabaseClient {
+      from: (table: string) => {
+        select: (columns?: string) => {
+          eq: (column: string, value: any) => {
+            eq: (column2: string, value2: any) => {
+              single: () => Promise<{ data: any; error: any }>;
+            };
+          };
+        };
+        insert: (data: any) => {
+          select: () => {
+            single: () => Promise<{ data: any; error: any }>;
+          };
+        };
+      };
+    }
 
+    declare global {
+      interface Window {
+        supabase: SupabaseClient;
+        userId: string;
+      }
+    }
+
+    const supabaseClient: SupabaseClient = {
+      from: (table: string) => ({
+        select: (columns = '*') => ({
+          eq: (column: string, value: any) => ({
+            eq: (column2: string, value2: any) => ({
+              single: async () => {
+                const response = await fetch(`/api/supabase/${table}?userId=${window.userId}&column=${column}&value=${value}&column2=${column2}&value2=${value2}`, {
+                  method: 'GET',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                });
+                return response.json();
+              },
+            }),
+          }),
+        }),
+        insert: (data: any) => ({
+          select: () => ({
+            single: async () => {
+              // Don't add user_id for soups and soups_in_shelf tables
+              const requestBody = (table === 'soups' || table === 'soups_in_shelf') ? data : { ...data, user_id: window.userId };
+              const response = await fetch(`/api/supabase/${table}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody),
+              });
+              return response.json();
+            },
+          }),
+        }),
+      }),
+    };
+
+    window.supabase = supabaseClient;
+  </script>
+
+  <script define:vars={{ userId }}>
+    // Expose userId to window
+    window.userId = userId;
+    
     // Get DOM elements with null checks
     const welcomeScreen = document.getElementById('welcome-screen');
     const quizContainer = document.getElementById('quiz-container');
@@ -299,22 +364,46 @@ const userId = session.user.id;
         {
           name: "Classic Chicken Noodle Soup",
           description: "A comforting bowl of tender chicken, hearty noodles, and vegetables in a rich broth. Perfect for cold symptoms and easy on the stomach.",
-          conditions: ["cold", "flu", "mild"],
+          ingredients: ["chicken", "noodles", "carrots", "celery", "onion", "garlic", "chicken broth"],
+          preparation_time: "30 minutes",
+          dietary_restrictions: ["None"],
+          symptoms_addressed: ["cold", "flu", "sore throat"],
+          consistency: "broth",
+          spiciness: "mild",
+          appetite_level: "moderate"
         },
         {
           name: "Spicy Tom Yum",
           description: "A hot and sour Thai soup with shrimp, mushrooms, and aromatic spices. Great for clearing sinuses and boosting energy.",
-          conditions: ["congestion", "spicy", "energetic"],
+          ingredients: ["shrimp", "mushrooms", "lemongrass", "galangal", "kaffir lime leaves", "chili peppers", "fish sauce"],
+          preparation_time: "20 minutes",
+          dietary_restrictions: ["None"],
+          symptoms_addressed: ["congestion", "fatigue"],
+          consistency: "broth",
+          spiciness: "spicy",
+          appetite_level: "light"
         },
         {
           name: "Creamy Butternut Squash Soup",
           description: "A smooth, velvety soup made with roasted butternut squash and warm spices. Ideal for vegetarians and those wanting comfort food.",
-          conditions: ["vegetarian", "creamy", "mild"],
+          ingredients: ["butternut squash", "onion", "garlic", "vegetable broth", "coconut milk", "nutmeg", "cinnamon"],
+          preparation_time: "45 minutes",
+          dietary_restrictions: ["Vegetarian", "Vegan"],
+          symptoms_addressed: ["fatigue", "stress"],
+          consistency: "creamy",
+          spiciness: "mild",
+          appetite_level: "moderate"
         },
         {
           name: "Quick Miso Soup",
           description: "A light but flavorful Japanese soup with tofu, seaweed, and umami-rich miso. Perfect for busy days and digestive health.",
-          conditions: ["quick", "light", "vegetarian"],
+          ingredients: ["miso paste", "tofu", "seaweed", "green onions", "dashi stock"],
+          preparation_time: "10 minutes",
+          dietary_restrictions: ["Vegetarian", "Vegan"],
+          symptoms_addressed: ["upset stomach", "fatigue"],
+          consistency: "broth",
+          spiciness: "mild",
+          appetite_level: "light"
         }
       ];
 
@@ -324,12 +413,12 @@ const userId = session.user.id;
 
       recommendations.forEach(soup => {
         let matchingConditions = 0;
-        if (soup.conditions.some(c => symptoms.includes(c))) matchingConditions++;
-        if (soup.conditions.some(c => consistency.includes(c))) matchingConditions++;
-        if (soup.conditions.some(c => spiciness.includes(c))) matchingConditions++;
-        if (soup.conditions.some(c => appetite.includes(c))) matchingConditions++;
-        if (soup.conditions.some(c => dietary.includes(c))) matchingConditions++;
-        if (soup.conditions.some(c => time.includes(c))) matchingConditions++;
+        if (soup.symptoms_addressed.some(s => symptoms.includes(s))) matchingConditions++;
+        if (soup.consistency === consistency[0]) matchingConditions++;
+        if (soup.spiciness === spiciness[0]) matchingConditions++;
+        if (soup.appetite_level === appetite[0]) matchingConditions++;
+        if (soup.dietary_restrictions.some(d => dietary.includes(d))) matchingConditions++;
+        if (soup.preparation_time === time[0]) matchingConditions++;
 
         if (matchingConditions > maxMatchingConditions) {
           maxMatchingConditions = matchingConditions;
@@ -368,57 +457,108 @@ const userId = session.user.id;
       }
 
       try {
-        // First create or get default shelf
-        const { data: shelves, error: shelfError } = await supabase
+        let shelfId;
+        
+        // First check if user has a default shelf
+        const { data: shelves, error: shelfError } = await window.supabase
           .from('soup_shelves')
           .select('*')
-          .eq('user_id', userId)
+          .eq('user_id', window.userId)
           .eq('name', 'My Soups')
           .single();
 
-        let shelfId;
-        
         if (shelfError || !shelves) {
+          console.log('Creating default shelf...');
           // Create default shelf if it doesn't exist
-          const { data: newShelf, error: createError } = await supabase
+          const { data: newShelf, error: createError } = await window.supabase
             .from('soup_shelves')
-            .insert([
-              {
-                name: 'My Soups',
-                description: 'My collection of recommended soups',
-                user_id: userId,
-                is_public: false,
-                likes_count: 0
-              }
-            ])
+            .insert({
+              name: 'My Soups',
+              description: 'My collection of recommended soups',
+              user_id: window.userId,
+              is_public: false,
+              likes_count: 0
+            })
             .select()
             .single();
 
-          if (createError) throw createError;
+          if (createError) {
+            console.error('Error creating default shelf:', createError);
+            throw createError;
+          }
+
+          if (!newShelf) {
+            throw new Error('No data returned from default shelf creation');
+          }
+
+          console.log('Default shelf created:', newShelf);
           shelfId = newShelf.id;
         } else {
+          console.log('Using existing default shelf:', shelves);
           shelfId = shelves.id;
         }
 
-        // Add soup to shelf
-        const { error: soupError } = await supabase
+        // First, create or get the soup
+        console.log('Creating soup...');
+        const recommendedSoup = calculateRecommendation();
+        
+        // Remove any extra fields that might be in the recommendation
+        const soupData = {
+          name: recommendedSoup.name,
+          description: recommendedSoup.description,
+          ingredients: recommendedSoup.ingredients,
+          preparation_time: recommendedSoup.preparation_time,
+          dietary_restrictions: recommendedSoup.dietary_restrictions,
+          symptoms_addressed: recommendedSoup.symptoms_addressed,
+          consistency: recommendedSoup.consistency,
+          spiciness: recommendedSoup.spiciness,
+          appetite_level: recommendedSoup.appetite_level
+        };
+
+        const { data: createdSoup, error: soupError } = await window.supabase
+          .from('soups')
+          .insert(soupData)
+          .select()
+          .single();
+
+        if (soupError) {
+          console.error('Error creating soup:', soupError);
+          throw soupError;
+        }
+
+        if (!createdSoup) {
+          throw new Error('No data returned from soup creation');
+        }
+
+        console.log('Soup created:', createdSoup);
+
+        // Then add it to the shelf
+        console.log('Adding soup to shelf...');
+        const { data: soupInShelfData, error: soupInShelfError } = await window.supabase
           .from('soups_in_shelf')
-          .insert([
-            {
-              shelf_id: shelfId,
-              name: soupName,
-              description: soupDescription,
-              added_at: new Date().toISOString()
-            }
-          ]);
+          .insert({
+            shelf_id: shelfId,
+            soup_id: createdSoup.id,
+            added_at: new Date().toISOString()
+          })
+          .select()
+          .single();
 
-        if (soupError) throw soupError;
+        if (soupInShelfError) {
+          console.error('Error adding soup to shelf:', soupInShelfError);
+          throw soupInShelfError;
+        }
 
+        if (!soupInShelfData) {
+          throw new Error('No data returned from soup addition');
+        }
+
+        console.log('Soup added to shelf successfully:', soupInShelfData);
         alert('Soup has been added to your shelf!');
         window.location.href = '/shelves';
       } catch (error) {
         console.error('Error saving soup:', error);
-        alert('Failed to save soup. Please try again.');
+        alert(`Failed to save soup: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
   </script>
