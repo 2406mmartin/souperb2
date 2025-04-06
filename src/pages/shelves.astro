@@ -179,13 +179,15 @@ const publicShelvesWithSoups = await Promise.all(
                   </p>
                 </div>
                 <div class="flex items-center gap-4">
-                  <button 
-                    class="text-sm text-orange hover:text-mustard transition-all duration-150"
-                    data-shelf-id={shelf.id}
-                    data-is-public={shelf.is_public}
-                  >
-                    {shelf.is_public ? 'Make Private' : 'Make Public'}
-                  </button>
+                  {shelf.name !== 'My Soups' && (
+                    <button 
+                      class="text-sm text-orange hover:text-mustard transition-all duration-150"
+                      data-shelf-id={shelf.id}
+                      data-is-public={shelf.is_public}
+                    >
+                      {shelf.is_public ? 'Make Private' : 'Make Public'}
+                    </button>
+                  )}
                   <div class="flex items-center gap-2">
                     <span class="text-sm text-super-saturated-creme">❤️ {shelf.likes_count}</span>
                   </div>
@@ -444,32 +446,26 @@ const publicShelvesWithSoups = await Promise.all(
           likes_count: 0
         };
 
-        const response = await fetch('/api/supabase/soup_shelves', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(shelfData),
-        });
+        const { data, error } = await supabase
+          .from('soup_shelves')
+          .insert([shelfData])
+          .select()
+          .single();
 
-        const result = await response.json();
+        if (error) throw error;
 
-        if (response.ok && result.id) {
-          showNotification('Shelf created successfully!');
-          
-          // Clear the form
-          nameInput.value = '';
-          descriptionInput.value = '';
-          isPublicInput.checked = false;
-          
-          // Close modal
-          modal?.classList.add('hidden');
-          
-          // Force a hard refresh of the page
-          window.location.reload();
-        } else {
-          throw new Error(result.error || 'Failed to create shelf');
-        }
+        showNotification('Shelf created successfully!');
+        
+        // Clear the form
+        nameInput.value = '';
+        descriptionInput.value = '';
+        isPublicInput.checked = false;
+        
+        // Close modal
+        modal?.classList.add('hidden');
+        
+        // Force a hard refresh of the page
+        window.location.reload();
       } catch (error) {
         console.error('Error creating shelf:', error);
         showNotification('Failed to create shelf. Please try again.', true);
@@ -503,7 +499,7 @@ const publicShelvesWithSoups = await Promise.all(
             window.location.reload();
           } catch (error) {
             console.error('Error updating shelf:', error);
-            alert('Failed to update shelf. Please try again.');
+            showNotification('Failed to update shelf. Please try again.', true);
           }
         });
       }
