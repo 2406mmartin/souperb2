@@ -1,0 +1,36 @@
+---
+import Welcome from '../components/Welcome.astro';
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Sign Up">
+	<div class="relative h-screen w-full flex justify-center items-center bg-creme bg-[url(background.png)] bg-size-[auto_150px] diagonal-scroll">
+		<form class="flex flex-col gap-4 w-full md:w-fit md:mx-none mx-12" action="/api/auth/signup" method="post">
+			<div class="flex flex-row justify-center items-center gap-4">
+				<img class="h-32 w-fit self-center mb-8" src="logo.png">
+				<div class="text-super-saturated-creme text-3xl font-bold">SIGN UP</div>
+			</div>
+			<div class="flex flex-col gap-4">
+				<label id="warning" class="text-xs text-red-700"></label>
+				<input type="email" name="email" id="email" autocomplete="email" required placeholder="Email" class="rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2 lg:w-full w-full transition-all duration-50">
+				<input type="email" name="email" id="email" autocomplete="email" required placeholder="Confirm Email" class="rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2 lg:w-full w-full transition-all duration-50">
+				<input type="password" name="password" id="password" autocomplete="current-password" placeholder="Password" required class="rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2 w-full transition-all duration-50">
+				<input type="password" name="password" id="password" autocomplete="current-password" placeholder="Confirm Password" required class="rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2 w-full transition-all duration-50">
+			</div>
+			<button type="submit" class="mt-16 relative flex w-full justify-center text-sm/6 font-semibold text-neutral-950 focus-visible:outline-2 focus-visible:outline-offset-2 hover:scale-105 hover:cursor-pointer transition-all duration-150">
+				<svg width="121" height="" viewBox="0 0 121 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M42.0968 32.7711C42.0968 32.7711 48.2274 36.4367 62.1484 35.9153C82.5502 35.1511 97.0507 31.1062 106.123 27.5108C112.184 25.109 110.616 17.8444 103.476 15.0898C88.0794 9.15017 62.964 2.55861 41.8515 11.5553" stroke="#FF9351" stroke-width="10"/>
+					<path d="M43.1075 32.5001C38.0433 30.5001 37.9636 26.2655 38.0432 21.8992C38.1192 17.7254 37 12 43.1076 11.0001" stroke="#FF9351" stroke-width="10"/>
+					<path d="M42 13.5L66.1552 7L109 19.4L109 27.2L55.8966 39L39 31.8L42 13.5Z" fill="#FF9351"/>
+					<path d="M0.389648 29.4453L-5.29509e-05 19.8236L30.1136 22.0101L30.2182 24.5915L0.389648 29.4453Z" fill="#4B7E3A"/>
+					<path d="M11.1528 40.3542L7.53111 33.5051L29.279 26.6708L30.2507 28.5084L11.1528 40.3542Z" fill="#4B7E3A"/>
+					<path d="M9.79138 6.73779L6.7312 13.7533L29.7454 19.7714L30.5664 17.8892L9.79138 6.73779Z" fill="#4B7E3A"/>
+				</svg>
+				<span class="absolute text-dark-orange text-sm top-1/2 left-1/2 -translate-x-1/3 -translate-y-1/2"> 
+					Sign up
+				</span>
+			</button>
+			<div class="text-sm text-orange text-center">Have an account? <a class="font-bold hover:text-mustard hover:cursor-pointer transition-all duration-150" href="/signin">Sign in</a></div>
+		</form>
+	</div>
+</Layout>

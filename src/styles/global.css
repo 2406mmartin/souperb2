@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+    --color-midnight: #121063;
+    --color-tahiti: #3ab7bf;
+    --color-bermuda: #78dcca;
+    --color-creme: #FFF4D4;
+    --color-satured-creme: #FFEAAB;
+    --color-super-saturated-creme: #FBC117;
+    --color-mustard: #8F6A00;
+    --color-orange: #FF9351;
+    --color-dark-orange: #BA4701;
+  }
+
+  @keyframes scrollDiagonal {
+    0% {
+      /* Start position (top-left) */
+      background-position: 0% 0%;
+    }
+    100% {
+      /* End position (bottom-right).
+         Because the background repeats, moving the position by 100%
+         in both directions effectively scrolls it diagonally.
+         You can adjust these % values or use pixel values if you know
+         the exact tile size for potentially smoother results, e.g., 100px 100px */
+      background-position: 100% 100%;
+    }
+  }
+  
+  .diagonal-scroll {
+    /* Apply the animation */
+    /* Format: animation-name duration timing-function iteration-count */
+    animation: scrollDiagonal 200s linear infinite; /* Adjust 20s to control speed */
+  }
