@@ -101,14 +101,7 @@ export const POST: APIRoute = async ({ request, params }) => {
         });
       }
 
-      if (!result) {
-        return new Response(JSON.stringify({ error: 'No data returned from soup creation' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      return new Response(JSON.stringify(result), {
+      return new Response(JSON.stringify({ data: result, error: null }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -129,7 +122,7 @@ export const POST: APIRoute = async ({ request, params }) => {
         });
       }
 
-      return new Response(JSON.stringify(result), {
+      return new Response(JSON.stringify({ data: result, error: null }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
