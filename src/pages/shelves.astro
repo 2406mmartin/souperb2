@@ -61,72 +61,77 @@ if (sessionError || !session) {
 
 const userId = session.user.id;
 
-// Get user's shelves with like status
-const { data: shelves, error: shelvesError } = await supabase
+// Fetch user's shelves with like status and public shelves
+const { data: userShelves, error: userShelvesError } = await supabase
   .from('soup_shelves')
   .select(`
     *,
-    shelf_likes!inner (
-      user_id
+    soups_in_shelf (
+      soup_id
     )
   `)
-  .eq('user_id', userId);
+  .eq('user_id', userId)
+  .order('created_at', { ascending: false });
 
-if (shelvesError) {
-  console.error('Error fetching shelves:', shelvesError);
-}
-
-// Get soups for each shelf
-const shelvesWithSoups = await Promise.all(
-  (shelves || []).map(async (shelf) => {
-    // First get the soup IDs in this shelf
-    const { data: soupsInShelf, error: soupsInShelfError } = await supabase
-      .from('soups_in_shelf')
-      .select('*')
-      .eq('shelf_id', shelf.id);
-
-    if (soupsInShelfError) {
-      console.error(`Error fetching soups_in_shelf for shelf ${shelf.id}:`, soupsInShelfError);
-      return { ...shelf, soups: [] };
-    }
-
-    // Then get the actual soup data for each soup ID
-    const soupsWithData = await Promise.all(
-      (soupsInShelf || []).map(async (soupInShelf) => {
-        const { data: soup, error: soupError } = await supabase
-          .from('soups')
-          .select('*')
-          .eq('id', soupInShelf.soup_id)
-          .single();
-
-        if (soupError) {
-          console.error(`Error fetching soup ${soupInShelf.soup_id}:`, soupError);
-          return { ...soupInShelf, soup: null };
-        }
-
-        return { ...soupInShelf, soup };
-      })
-    );
-
-    return { ...shelf, soups: soupsWithData.filter(s => s.soup !== null) };
-  })
-);
-
-// Get public shelves with like status
+// Fetch public shelves with like status
 const { data: publicShelves, error: publicShelvesError } = await supabase
   .from('soup_shelves')
   .select(`
     *,
-    profiles (
-      username
-    ),
-    shelf_likes!inner (
-      user_id
+    soups_in_shelf (
+      soup_id
     )
   `)
   .eq('is_public', true)
   .order('likes_count', { ascending: false })
   .limit(5);
+
+if (userShelvesError) {
+  console.error('Error fetching user shelves:', userShelvesError);
+}
+
+if (publicShelvesError) {
+  console.error('Error fetching public shelves:', publicShelvesError);
+}
+
+// Ensure we have arrays even if the data is null
+const userShelvesList = userShelves || [];
+const publicShelvesList = publicShelves || [];
+
+// Fetch soup data for each shelf
+const userShelvesWithSoups = await Promise.all(
+  userShelvesList.map(async (shelf) => {
+    const soupIds = shelf.soups_in_shelf?.map((sis: SoupInShelf) => sis.soup_id) || [];
+    const { data: soups, error: soupsError } = await supabase
+      .from('soups')
+      .select('*')
+      .in('id', soupIds);
+
+    if (soupsError) {
+      console.error('Error fetching soups for shelf:', shelf.id, soupsError);
+      return { ...shelf, soups: [] };
+    }
+
+    return { ...shelf, soups: soups || [] };
+  })
+);
+
+const publicShelvesWithSoups = await Promise.all(
+  publicShelvesList.map(async (shelf) => {
+    const soupIds = shelf.soups_in_shelf?.map((sis: SoupInShelf) => sis.soup_id) || [];
+    const { data: soups, error: soupsError } = await supabase
+      .from('soups')
+      .select('*')
+      .in('id', soupIds);
+
+    if (soupsError) {
+      console.error('Error fetching soups for shelf:', shelf.id, soupsError);
+      return { ...shelf, soups: [] };
+    }
+
+    return { ...shelf, soups: soups || [] };
+  })
+);
 
 ---
 
@@ -134,32 +139,37 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
   <div class="min-h-screen flex flex-col bg-bue-blue bg-[url(background2.png)] bg-size-[auto_150px] diagonal-scroll">
     <!-- Header -->
     <header class="fixed top-0 w-full p-4 flex justify-between items-center bg-creme border-b border-mustard z-10">
-      <a href="/" class="text-sm text-orange hover:text-mustard transition-all duration-150">
-        Back to Home
-      </a>
-      <h1 class="text-xl font-semibold text-mustard">My Soup Shelves</h1>
-      <div class="flex gap-4">
-        <button id="create-shelf" class="text-sm text-orange hover:text-mustard transition-all duration-150">
-          Create Shelf
-        </button>
+      <div class="flex items-center gap-4">
+        <a href="/" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+          Home
+        </a>
         <a href="/quiz" class="text-sm text-orange hover:text-mustard transition-all duration-150">
           Take Quiz
         </a>
       </div>
+      <h1 class="text-xl font-semibold text-mustard">My Soup Shelves</h1>
+      <button id="create-shelf" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+        Create Shelf
+      </button>
     </header>
 
     <!-- Main content -->
     <div class="flex-1 pt-16 pb-4 px-4 max-w-4xl mx-auto w-full">
-      {shelvesWithSoups.length === 0 ? (
+      {userShelvesWithSoups.length === 0 ? (
         <div class="text-center mt-8">
           <p class="text-true-blue mb-4">You don't have any soup shelves yet!</p>
-          <a href="/quiz" class="bg-true-blue hover:bg-black text-bue-blue hover:text-white py-2 px-4 rounded-md transition-all duration-150">
-            Take the Quiz to Get Started
-          </a>
+          <div class="flex flex-col gap-4 items-center">
+            <a href="/quiz" class="bg-true-blue hover:bg-black text-bue-blue hover:text-white py-2 px-4 rounded-md transition-all duration-150">
+              Take the Quiz to Get Started
+            </a>
+            <button id="create-shelf-empty" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+              Or create a shelf manually
+            </button>
+          </div>
         </div>
       ) : (
         <div class="grid gap-6">
-          {shelvesWithSoups.map((shelf: Shelf) => (
+          {userShelvesWithSoups.map((shelf) => (
             <div class="bg-satured-creme rounded-lg p-6 shadow-lg">
               <div class="flex justify-between items-center mb-4">
                 <div>
@@ -184,21 +194,24 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
               <p class="text-super-saturated-creme mb-4">{shelf.description}</p>
               
               {shelf.soups.length === 0 ? (
-                <p class="text-center text-super-saturated-creme py-4">
-                  No soups in this shelf yet
-                </p>
+                <div class="text-center py-4">
+                  <p class="text-super-saturated-creme mb-4">No soups in this shelf yet</p>
+                  <a href="/quiz" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+                    Take the Quiz to Add Soups
+                  </a>
+                </div>
               ) : (
                 <div class="grid gap-4">
-                  {shelf.soups.map((soupInShelf) => (
+                  {shelf.soups.map((soup: Soup) => (
                     <div class="bg-creme rounded-lg p-4">
                       <div class="flex justify-between items-start mb-2">
-                        <h3 class="text-lg font-semibold text-mustard">{soupInShelf.soup.name}</h3>
-                        <span class="text-sm text-super-saturated-creme">{soupInShelf.soup.preparation_time}</span>
+                        <h3 class="text-lg font-semibold text-mustard">{soup.name}</h3>
+                        <span class="text-sm text-super-saturated-creme">{soup.preparation_time}</span>
                       </div>
-                      <p class="text-super-saturated-creme mb-3">{soupInShelf.soup.description}</p>
+                      <p class="text-super-saturated-creme mb-3">{soup.description}</p>
                       
                       <div class="flex flex-wrap gap-2 mb-3">
-                        {soupInShelf.soup.symptoms_addressed.map((symptom: string) => (
+                        {soup.symptoms_addressed.map((symptom) => (
                           <span class="bg-mustard text-creme text-xs px-2 py-1 rounded-full">
                             {symptom}
                           </span>
@@ -207,15 +220,15 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
                       
                       <div class="flex flex-wrap gap-2">
                         <span class="bg-true-blue text-bue-blue text-xs px-2 py-1 rounded-full">
-                          {soupInShelf.soup.consistency}
+                          {soup.consistency}
                         </span>
                         <span class="bg-true-blue text-bue-blue text-xs px-2 py-1 rounded-full">
-                          {soupInShelf.soup.spiciness}
+                          {soup.spiciness}
                         </span>
                         <span class="bg-true-blue text-bue-blue text-xs px-2 py-1 rounded-full">
-                          {soupInShelf.soup.appetite_level}
+                          {soup.appetite_level}
                         </span>
-                        {soupInShelf.soup.dietary_restrictions.map((restriction: string) => (
+                        {soup.dietary_restrictions.map((restriction) => (
                           <span class="bg-true-blue text-bue-blue text-xs px-2 py-1 rounded-full">
                             {restriction}
                           </span>
@@ -231,16 +244,16 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
       )}
 
       {/* Public Shelves Section */}
-      {publicShelves && publicShelves.length > 0 && (
+      {publicShelvesWithSoups.length > 0 && (
         <div class="mt-12">
           <h2 class="text-xl font-semibold text-mustard mb-6">Popular Public Shelves</h2>
           <div class="grid gap-6">
-            {publicShelves.map((shelf: any) => (
+            {publicShelvesWithSoups.map((shelf) => (
               <div class="bg-satured-creme rounded-lg p-6 shadow-lg">
                 <div class="flex justify-between items-center mb-4">
                   <div>
                     <h3 class="text-lg font-semibold text-mustard">{shelf.name}</h3>
-                    <p class="text-sm text-super-saturated-creme">by {shelf.profiles?.username}</p>
+                    <p class="text-sm text-super-saturated-creme">by Anonymous</p>
                   </div>
                   <div class="flex items-center gap-4">
                     <button 
@@ -249,10 +262,15 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
                     >
                       Like Shelf
                     </button>
-                    <span class="text-sm text-super-saturated-creme">❤️ {shelf.likes_count}</span>
+                    <span class="text-sm text-super-saturated-creme">❤️ {shelf.likes_count || 0}</span>
                   </div>
                 </div>
                 <p class="text-super-saturated-creme mb-4">{shelf.description}</p>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-super-saturated-creme">
+                    {shelf.soups.length} {shelf.soups.length === 1 ? 'soup' : 'soups'}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -300,7 +318,93 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
   </div>
 
   <script define:vars={{ userId }}>
-    const supabase = window.supabase;
+    // Expose userId to window
+    window.userId = userId;
+
+    // Create and expose Supabase client
+    const supabaseClient = {
+      from: (table) => ({
+        select: (columns = '*') => ({
+          eq: (column, value) => ({
+            eq: (column2, value2) => ({
+              single: async () => {
+                const response = await fetch(`/api/supabase/${table}?userId=${window.userId}&column=${column}&value=${value}&column2=${column2}&value2=${value2}`, {
+                  method: 'GET',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                });
+                return response.json();
+              },
+            }),
+            single: async () => {
+              const response = await fetch(`/api/supabase/${table}?userId=${window.userId}&column=${column}&value=${value}`, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              });
+              return response.json();
+            },
+          }),
+        }),
+        insert: (data) => ({
+          select: () => ({
+            single: async () => {
+              const response = await fetch(`/api/supabase/${table}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+              });
+              return response.json();
+            },
+          }),
+        }),
+        update: (data) => ({
+          eq: async (column, value) => {
+            const response = await fetch(`/api/supabase/${table}?value=${value}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(data),
+            });
+            return response.json();
+          },
+        }),
+        delete: () => ({
+          eq: async (column, value) => {
+            const response = await fetch(`/api/supabase/${table}?userId=${window.userId}&column=${column}&value=${value}`, {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            return response.json();
+          },
+        }),
+      }),
+    };
+
+    window.supabase = supabaseClient;
+
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 hidden';
+    document.body.appendChild(notification);
+
+    function showNotification(message, isError = false) {
+      notification.textContent = message;
+      notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+        isError ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+      }`;
+      notification.classList.remove('hidden');
+      setTimeout(() => {
+        notification.classList.add('hidden');
+      }, 5000);
+    }
 
     const modal = document.getElementById('create-shelf-modal');
     const createButton = document.getElementById('create-shelf');
@@ -327,39 +431,49 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
           !(descriptionInput instanceof HTMLTextAreaElement) || 
           !(isPublicInput instanceof HTMLInputElement)) {
         console.error('Form inputs not found or invalid');
+        showNotification('Form inputs not found or invalid', true);
         return;
       }
 
       try {
-        console.log('Creating new shelf...');
-        const { data, error } = await supabase
-          .from('soup_shelves')
-          .insert([
-            {
-              name: nameInput.value,
-              description: descriptionInput.value,
-              is_public: isPublicInput.checked,
-              user_id: userId,
-              likes_count: 0
-            }
-          ])
-          .select();
+        const shelfData = {
+          name: nameInput.value,
+          description: descriptionInput.value,
+          is_public: isPublicInput.checked,
+          user_id: userId,
+          likes_count: 0
+        };
 
-        if (error) {
-          console.error('Supabase error:', error);
-          throw error;
+        const response = await fetch('/api/supabase/soup_shelves', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(shelfData),
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.id) {
+          showNotification('Shelf created successfully!');
+          
+          // Clear the form
+          nameInput.value = '';
+          descriptionInput.value = '';
+          isPublicInput.checked = false;
+          
+          // Close modal
+          modal?.classList.add('hidden');
+          
+          // Force a hard refresh of the page
+          window.location.reload();
+        } else {
+          throw new Error(result.error || 'Failed to create shelf');
         }
-
-        if (!data) {
-          throw new Error('No data returned from shelf creation');
-        }
-
-        console.log('Shelf created successfully:', data);
-        // Refresh the page to show new shelf
-        window.location.reload();
       } catch (error) {
         console.error('Error creating shelf:', error);
-        alert(`Failed to create shelf: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        showNotification('Failed to create shelf. Please try again.', true);
+        modal?.classList.remove('hidden');
       }
     });
 
@@ -414,6 +528,15 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
             throw checkError;
           }
 
+          // Get current shelf data to access likes_count
+          const { data: shelfData, error: shelfError } = await supabase
+            .from('soup_shelves')
+            .select('likes_count')
+            .eq('id', shelfId)
+            .single();
+
+          if (shelfError) throw shelfError;
+
           if (existingLike) {
             // Unlike the shelf
             const { error: unlikeError } = await supabase
@@ -423,10 +546,10 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
 
             if (unlikeError) throw unlikeError;
 
-            // Update likes count
+            // Update likes count by decrementing
             const { error: updateError } = await supabase
               .from('soup_shelves')
-              .update({ likes_count: supabase.rpc('decrement_likes_count') })
+              .update({ likes_count: (shelfData.likes_count || 0) - 1 })
               .eq('id', shelfId);
 
             if (updateError) throw updateError;
@@ -438,10 +561,10 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
 
             if (likeError) throw likeError;
 
-            // Update likes count
+            // Update likes count by incrementing
             const { error: updateError } = await supabase
               .from('soup_shelves')
-              .update({ likes_count: supabase.rpc('increment_likes_count') })
+              .update({ likes_count: (shelfData.likes_count || 0) + 1 })
               .eq('id', shelfId);
 
             if (updateError) throw updateError;
@@ -451,9 +574,14 @@ const { data: publicShelves, error: publicShelvesError } = await supabase
           window.location.reload();
         } catch (error) {
           console.error('Error handling like:', error);
-          alert('Failed to update like. Please try again.');
+          showNotification('Failed to update like. Please try again.', true);
         }
       });
+    });
+
+    // Add event listener for the empty state create button
+    document.getElementById('create-shelf-empty')?.addEventListener('click', () => {
+      modal?.classList.remove('hidden');
     });
   </script>
 </Layout> 
