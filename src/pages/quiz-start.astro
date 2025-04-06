@@ -1,0 +1,19 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Quiz">
+	<div class="relative h-screen w-full flex flex-col justify-center items-center bg-bue-blue bg-[url(background2.png)] bg-size-[auto_150px] diagonal-scroll">
+        <div class="text-3xl text-true-blue font-bold">Soup Selection Quiz</div>
+        <div class="text-xl text-true-blue">Find The Perfect Soup For You!</div>
+        <button class="mt-8 flex flex-row bg-true-blue hover:bg-black text-bue-blue hover:text-white  py-2 px-4 rounded-md gap-2 transition-all duration-150 hover:cursor-pointer">
+            <div>Start</div>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3" />
+            </svg>              
+        </button>
+        <button class="bg-light-blue text-bue-blue py-1 px-2 rounded-lg gap-2 transition-all duration-150 hover:cursor-pointer">
+            word            
+        </button>
+    </div>
+</Layout>

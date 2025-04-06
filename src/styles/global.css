@@ -10,6 +10,9 @@
     --color-mustard: #8F6A00;
     --color-orange: #FF9351;
     --color-dark-orange: #BA4701;
+    --color-bue-blue: #A8CEFF;
+    --color-true-blue: #0D3AE8;
+    --color-light-blue: #C5DEFF;
   }
 
   @keyframes scrollDiagonal {
