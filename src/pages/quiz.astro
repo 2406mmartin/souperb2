@@ -63,12 +63,18 @@ const userId = session.user.id;
           <img id="soup-image" class="h-24 w-fit mb-2">
           <h3 id="soup-name" class="text-xl font-semibold text-mustard mb-2"></h3>
           <p id="soup-description" class="text-super-saturated-creme mb-4"></p>
-          <div class="flex justify-between items-center gap-8">
-            <button onclick="restartQuiz()" class="text-orange hover:text-mustard transition-all duration-150 cursor-pointer">
-              Take Quiz Again
-            </button>
-            <button id="can-soup" class="bg-mustard text-creme px-4 py-2 rounded-md hover:bg-dark-orange transition-all duration-150 cursor-pointer">
-              Can This Soup
+          <p id="soup-ingredients" class="text-super-saturated-creme mb-4 hidden"></p>
+          <div class="flex flex-col justify-between items-center gap-4">
+            <div class="flex justify-between items-center gap-8">
+              <button onclick="restartQuiz()" class="text-orange hover:text-mustard transition-all duration-150 cursor-pointer">
+                Take Quiz Again
+              </button>
+              <button id="can-soup" class="bg-mustard text-creme px-4 py-2 rounded-md hover:bg-dark-orange transition-all duration-150 cursor-pointer">
+                Can This Soup
+              </button>
+            </div>
+            <button id="show-ingredients-btn" class="bg-mustard text-creme px-4 py-2 rounded-md hover:bg-dark-orange transition-all duration-150 cursor-pointer">
+              See Ingredients
             </button>
           </div>
         </div>
@@ -345,11 +351,13 @@ const userId = session.user.id;
       const soupNameElement = document.getElementById('soup-name');
       const soupImageElement = document.getElementById('soup-image');
       const soupDescriptionElement = document.getElementById('soup-description');
+      const soupIngredientElement = document.getElementById('soup-ingredients');
       
       if (soupNameElement && soupDescriptionElement) {
         soupNameElement.textContent = recommendedSoup.name;
         soupImageElement.src = ("/soups/" + recommendedSoup.id + ".png");
         soupDescriptionElement.textContent = recommendedSoup.description;
+        soupIngredientElement.textContent = recommendedSoup.ingredients;
       }
     }
 
@@ -838,6 +846,14 @@ const userId = session.user.id;
       showQuestion();
       updateProgress();
     });
+
+    function showIngredients() {
+      const soupIngredientElement = document.getElementById('soup-ingredients');
+      soupIngredientElement.style.display = "block";
+    }
+    
+    const showIngredientsButton = document.getElementById('show-ingredients-btn');
+    showIngredientsButton.addEventListener('click', showIngredients);
 
     function restartQuiz() {
       currentQuestion = 0;
