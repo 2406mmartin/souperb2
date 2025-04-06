@@ -11,7 +11,7 @@ if (!accessToken || !refreshToken) {
 ---
 
 <Layout title="AI Chat">
-  <div class="h-screen flex flex-col bg-creme pt-16">
+  <div class="h-screen flex flex-col pt-16 bg-redd bg-[url(background4.png)] bg-size-[auto_150px] diagonal-scroll">
     <div class="flex justify-between items-center p-4">
       <h1 class="text-xl font-semibold text-mustard">AI Chat</h1>
       <button 
@@ -30,7 +30,7 @@ if (!accessToken || !refreshToken) {
           type="text" 
           id="message-input" 
           placeholder="Type your message..." 
-          class="flex-1 rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2 transition-all duration-50"
+          class="rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2 lg:w-full w-full transition-all duration-50"
           required
         />
         <button 

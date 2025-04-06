@@ -24,7 +24,7 @@ const userId = session.user.id;
 ---
 
 <Layout title="Soup Quiz">
-  <div class="min-h-screen bg-creme flex flex-col">
+  <div class="min-h-screen flex flex-col bg-bue-blue bg-[url(background2.png)] bg-size-[auto_150px] diagonal-scroll">
     <!-- Header with back button -->
     <header class="fixed top-0 w-full p-4 flex justify-between items-center bg-creme border-b border-mustard z-10">
       <a href="/" class="text-sm text-orange hover:text-mustard transition-all duration-150">
@@ -43,16 +43,16 @@ const userId = session.user.id;
 
       <!-- Welcome screen -->
       <div id="welcome-screen" class="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <h2 class="text-2xl font-bold text-mustard mb-4">Soup Selection Quiz:</h2>
-        <h3 class="text-xl text-mustard mb-8">Find The Perfect Soup For You!</h3>
-        <button id="start-quiz" class="bg-mustard text-creme px-8 py-3 rounded-md hover:bg-dark-orange transition-all duration-150">
+        <h2 class="text-2xl font-bold text-true-blue mb-4">Soup Selection Quiz:</h2>
+        <h3 class="text-xl text-true-blue mb-8">Find The Perfect Soup For You!</h3>
+        <button id="start-quiz" class="bg-true-blue hover:bg-black text-bue-blue hover:text-white  py-2 px-4 rounded-md gap-2 transition-all duration-150 hover:cursor-pointer">
           Start
         </button>
       </div>
 
       <!-- Quiz questions -->
       <div id="quiz-container" class="hidden">
-        <h2 id="question-text" class="text-xl text-mustard mb-6 text-center"></h2>
+        <h2 id="question-text" class="text-xl text-true-blue mb-6 text-center"></h2>
         <div id="options-container" class="grid gap-3"></div>
       </div>
 
@@ -244,7 +244,7 @@ const userId = session.user.id;
       if (currentQuestion > 0) {
         const backButton = document.createElement('button');
         backButton.textContent = 'Previous';
-        backButton.className = 'text-orange hover:text-mustard transition-all duration-150';
+        backButton.className = 'bg-true-blue hover:bg-black text-bue-blue hover:text-white  py-2 px-4 rounded-md gap-2 transition-all duration-150 hover:cursor-pointer';
         backButton.onclick = () => {
           currentQuestion--;
           showQuestion();
@@ -255,7 +255,7 @@ const userId = session.user.id;
 
       const nextButton = document.createElement('button');
       nextButton.textContent = currentQuestion === questions.length - 1 ? 'Complete' : 'Next';
-      nextButton.className = 'text-orange hover:text-mustard transition-all duration-150 ml-auto';
+      nextButton.className = 'bg-true-blue hover:bg-black text-bue-blue hover:text-white  py-2 px-4 rounded-md gap-2 transition-all duration-150 hover:cursor-pointer';
       nextButton.onclick = () => {
         if (currentQuestion === questions.length - 1) {
           showResults();
