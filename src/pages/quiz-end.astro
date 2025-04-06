@@ -1,0 +1,17 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Quiz End">
+	<div class="relative h-screen w-full flex gap-8 text-center flex-col items-center bg-light-green bg-[url(background3.png)] bg-size-[auto_150px] diagonal-scroll">
+        <div class="mt-32 mb-6 text-3xl text-dark-green font-medium">Here are your soup suggestions:</div>
+        <button class="mx-8 text-3xl shadow-md line-clamp-2 flex flex-row gap-6 justify-center items-center bg-other-green hover:bg-black font-medium text-light-green hover:text-white  py-2 px-8 rounded-4xl transition-all duration-150 hover:cursor-pointer">
+            <img class="w-fit h-38" src="soup.png">
+            <div>Chicken Noodle Soup</div> 
+        </button>
+        <button class="mx-8 text-3xl shadow-md line-clamp-2 flex flex-row gap-6 justify-center items-center bg-other-green hover:bg-black font-medium text-light-green hover:text-white  py-2 px-8 rounded-4xl transition-all duration-150 hover:cursor-pointer">
+            <img class="w-fit h-38" src="soup.png">
+            <div>Chicken Noodle Soup 2</div> 
+        </button>
+    </div>
+</Layout>

@@ -13,6 +13,9 @@
     --color-bue-blue: #A8CEFF;
     --color-true-blue: #0D3AE8;
     --color-light-blue: #C5DEFF;
+    --color-light-green: #99BF5C;
+    --color-dark-green: #2A4302;
+    --color-other-green: #4B681D;
   }
 
   @keyframes scrollDiagonal {
