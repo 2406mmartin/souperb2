@@ -136,7 +136,7 @@ const publicShelvesWithSoups = await Promise.all(
 ---
 
 <Layout title="My Soup Shelves">
-  <div class="min-h-screen flex flex-col bg-bue-blue bg-[url(background2.png)] bg-size-[auto_150px] diagonal-scroll">
+  <div class="min-h-screen flex flex-col bg-bue-blue bg-[url(shelf.png)] bg-cover">
     <!-- Header -->
     <header class="fixed top-0 w-full p-4 flex justify-between items-center bg-creme border-b border-mustard z-10">
       <div class="flex items-center gap-4">
@@ -246,7 +246,7 @@ const publicShelvesWithSoups = await Promise.all(
       {/* Public Shelves Section */}
       {publicShelvesWithSoups.length > 0 && (
         <div class="mt-12">
-          <h2 class="text-xl font-semibold text-mustard mb-6">Popular Public Shelves</h2>
+          <h2 class="text-xl font-semibold text-satured-creme mb-6">Popular Public Shelves</h2>
           <div class="grid gap-6">
             {publicShelvesWithSoups.map((shelf) => (
               <div class="bg-satured-creme rounded-lg p-6 shadow-lg">
