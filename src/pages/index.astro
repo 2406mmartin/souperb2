@@ -36,18 +36,54 @@ try {
 }
 ---
 
-<Layout>
-  <div class="min-h-screen bg-neutral-950 text-white p-4">
-    <div class="max-w-4xl mx-auto">
-      <h1 class="text-2xl font-bold mb-6">Welcome to Souperb!</h1>
-      <div class="bg-neutral-900 rounded-lg p-4 mb-4">
-        <p class="mb-4">You are logged in successfully!</p>
-        <a
-          href="/chat"
-          class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-        >
-          Go to Chat
-        </a>
+<Layout title="Souperb - Home">
+  <div class="min-h-screen bg-creme">
+    <!-- Header -->
+    <header class="fixed top-0 w-full p-4 flex justify-between items-center bg-creme border-b border-mustard z-10">
+      <h1 class="text-xl font-semibold text-mustard">Souperb</h1>
+      <a href="/api/auth/signout" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+        Logout
+      </a>
+    </header>
+
+    <!-- Main content -->
+    <div class="pt-20 px-4 max-w-4xl mx-auto">
+      <div class="grid gap-6 md:grid-cols-2">
+        <!-- Quiz Card -->
+        <div class="bg-satured-creme rounded-lg p-6 shadow-lg">
+          <h2 class="text-xl font-semibold text-mustard mb-3">Find Your Perfect Soup</h2>
+          <p class="text-super-saturated-creme mb-4">Take our quiz to discover the ideal soup for your current needs and preferences.</p>
+          <a
+            href="/quiz"
+            class="inline-block bg-mustard text-creme px-6 py-3 rounded-md hover:bg-dark-orange transition-all duration-150"
+          >
+            Take the Quiz
+          </a>
+        </div>
+
+        <!-- Soup Shelves Card -->
+        <div class="bg-satured-creme rounded-lg p-6 shadow-lg">
+          <h2 class="text-xl font-semibold text-mustard mb-3">Soup Shelves</h2>
+          <p class="text-super-saturated-creme mb-4">View your saved soups and discover what others are enjoying.</p>
+          <a
+            href="/shelves"
+            class="inline-block bg-mustard text-creme px-6 py-3 rounded-md hover:bg-dark-orange transition-all duration-150"
+          >
+            View Shelves
+          </a>
+        </div>
+
+        <!-- Chat Card -->
+        <div class="bg-satured-creme rounded-lg p-6 shadow-lg">
+          <h2 class="text-xl font-semibold text-mustard mb-3">Chat with CarroQueen</h2>
+          <p class="text-super-saturated-creme mb-4">Get personalized soup recommendations and advice from our AI assistant.</p>
+          <a
+            href="/chat"
+            class="inline-block bg-mustard text-creme px-6 py-3 rounded-md hover:bg-dark-orange transition-all duration-150"
+          >
+            Start Chatting
+          </a>
+        </div>
       </div>
     </div>
   </div>

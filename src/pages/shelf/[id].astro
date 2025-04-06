@@ -1,0 +1,286 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase } from "../../lib/supabase";
+
+const { cookies, params } = Astro;
+const accessToken = cookies.get("sb-access-token");
+const refreshToken = cookies.get("sb-refresh-token");
+
+if (!accessToken || !refreshToken) {
+  return Astro.redirect("/signin");
+}
+
+// Get user session
+const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+  refresh_token: refreshToken.value,
+  access_token: accessToken.value,
+});
+
+if (sessionError || !session) {
+  return Astro.redirect("/signin");
+}
+
+// Fetch shelf details
+const { data: shelf, error: shelfError } = await supabase
+  .from('soup_shelves')
+  .select('*, profiles(username)')
+  .eq('id', params.id)
+  .single();
+
+if (shelfError || !shelf) {
+  return Astro.redirect("/shelves");
+}
+
+// Check if user can view this shelf
+if (!shelf.is_public && shelf.user_id !== session.user.id) {
+  return Astro.redirect("/shelves");
+}
+
+// Fetch soups in shelf
+const { data: soups, error: soupsError } = await supabase
+  .from('soups_in_shelf')
+  .select('*')
+  .eq('shelf_id', params.id)
+  .order('added_at', { ascending: false });
+
+// Check if user has liked this shelf
+const { data: userLike } = await supabase
+  .from('shelf_likes')
+  .select('*')
+  .eq('shelf_id', params.id)
+  .eq('user_id', session.user.id)
+  .maybeSingle();
+
+const isOwner = shelf.user_id === session.user.id;
+const hasLiked = !!userLike;
+---
+
+<Layout title={`${shelf.name} - Soup Shelf`}>
+  <div class="min-h-screen bg-creme">
+    <!-- Header -->
+    <header class="fixed top-0 w-full p-4 flex justify-between items-center bg-creme border-b border-mustard z-10">
+      <div class="flex items-center gap-4">
+        <a href="/shelves" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+          Back to Shelves
+        </a>
+        <h1 class="text-xl font-semibold text-mustard">{shelf.name}</h1>
+      </div>
+      {isOwner && (
+        <button id="edit-shelf" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+          Edit Shelf
+        </button>
+      )}
+    </header>
+
+    <!-- Main content -->
+    <div class="pt-20 px-4 max-w-4xl mx-auto">
+      <!-- Shelf info -->
+      <div class="bg-satured-creme rounded-lg p-6 shadow-lg mb-8">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <p class="text-super-saturated-creme text-sm mb-2">{shelf.description}</p>
+            <p class="text-xs text-super-saturated-creme">Created by {shelf.profiles?.username}</p>
+          </div>
+          {shelf.is_public && !isOwner && (
+            <button 
+              id="like-shelf" 
+              class={`text-sm ${hasLiked ? 'text-mustard' : 'text-super-saturated-creme hover:text-mustard'} transition-all duration-150`}
+              data-shelf-id={shelf.id}
+            >
+              ❤️ {shelf.likes_count}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <!-- Soups list -->
+      <div class="grid gap-4 md:grid-cols-2">
+        {soups?.map((soup) => (
+          <div class="bg-satured-creme rounded-lg p-4 shadow-lg">
+            <h3 class="text-lg font-medium text-mustard mb-2">{soup.name}</h3>
+            <p class="text-super-saturated-creme text-sm">{soup.description}</p>
+            {isOwner && (
+              <button 
+                class="remove-soup mt-4 text-sm text-orange hover:text-mustard transition-all duration-150"
+                data-soup-id={soup.id}
+              >
+                Remove from Shelf
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {(!soups || soups.length === 0) && (
+        <p class="text-super-saturated-creme text-center py-8">
+          This shelf is empty. {isOwner ? "Take the quiz to add some soups!" : "Check back later for soups!"}
+        </p>
+      )}
+    </div>
+  </div>
+
+  <!-- Edit Shelf Modal -->
+  {isOwner && (
+    <div id="edit-shelf-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+      <div class="bg-creme rounded-lg p-6 w-full max-w-md">
+        <h2 class="text-xl font-semibold text-mustard mb-4">Edit Shelf</h2>
+        <form id="edit-shelf-form" class="space-y-4">
+          <div>
+            <label for="shelf-name" class="block text-super-saturated-creme text-sm mb-1">Shelf Name</label>
+            <input 
+              type="text" 
+              id="shelf-name" 
+              value={shelf.name}
+              required 
+              class="w-full rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2"
+            >
+          </div>
+          <div>
+            <label for="shelf-description" class="block text-super-saturated-creme text-sm mb-1">Description</label>
+            <textarea 
+              id="shelf-description" 
+              required 
+              class="w-full rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2"
+            >{shelf.description}</textarea>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="is-public" checked={shelf.is_public} class="text-mustard">
+            <label for="is-public" class="text-super-saturated-creme text-sm">Make this shelf public</label>
+          </div>
+          <div class="flex justify-end gap-2 mt-6">
+            <button type="button" id="cancel-edit" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+              Cancel
+            </button>
+            <button type="submit" class="bg-mustard text-creme px-4 py-2 rounded-md hover:bg-dark-orange transition-all duration-150">
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )}
+
+  <script define:vars={{ shelfId: params.id, userId: session.user.id }}>
+    const supabase = window.supabase;
+
+    // Handle shelf likes
+    const likeButton = document.getElementById('like-shelf');
+    likeButton?.addEventListener('click', async () => {
+      try {
+        const isLiked = likeButton.classList.contains('text-mustard');
+        
+        if (isLiked) {
+          // Unlike shelf
+          const { error } = await supabase
+            .from('shelf_likes')
+            .delete()
+            .eq('shelf_id', shelfId)
+            .eq('user_id', userId);
+
+          if (error) throw error;
+          
+          likeButton.classList.remove('text-mustard');
+          likeButton.classList.add('text-super-saturated-creme', 'hover:text-mustard');
+        } else {
+          // Like shelf
+          const { error } = await supabase
+            .from('shelf_likes')
+            .insert([{ shelf_id: shelfId, user_id: userId }]);
+
+          if (error) throw error;
+          
+          likeButton.classList.remove('text-super-saturated-creme', 'hover:text-mustard');
+          likeButton.classList.add('text-mustard');
+        }
+
+        // Update likes count
+        const { data: updatedShelf } = await supabase
+          .from('soup_shelves')
+          .select('likes_count')
+          .eq('id', shelfId)
+          .single();
+
+        if (updatedShelf) {
+          likeButton.textContent = `❤️ ${updatedShelf.likes_count}`;
+        }
+      } catch (error) {
+        console.error('Error updating like:', error);
+        alert('Failed to update like. Please try again.');
+      }
+    });
+
+    // Handle soup removal
+    document.querySelectorAll('.remove-soup').forEach(button => {
+      button.addEventListener('click', async (e) => {
+        const target = e.currentTarget;
+        const soupId = target instanceof HTMLButtonElement ? target.dataset.soupId : null;
+        
+        if (!confirm('Are you sure you want to remove this soup from your shelf?')) {
+          return;
+        }
+
+        try {
+          const { error } = await supabase
+            .from('soups_in_shelf')
+            .delete()
+            .eq('id', soupId);
+
+          if (error) throw error;
+
+          // Remove the soup card from the UI
+          const button = target instanceof HTMLButtonElement ? target : null;
+          button?.closest('.bg-satured-creme')?.remove();
+        } catch (error) {
+          console.error('Error removing soup:', error);
+          alert('Failed to remove soup. Please try again.');
+        }
+      });
+    });
+
+    // Handle shelf editing
+    const editButton = document.getElementById('edit-shelf');
+    const editModal = document.getElementById('edit-shelf-modal');
+    const cancelButton = document.getElementById('cancel-edit');
+    const editForm = document.getElementById('edit-shelf-form');
+
+    editButton?.addEventListener('click', () => {
+      editModal?.classList.remove('hidden');
+    });
+
+    cancelButton?.addEventListener('click', () => {
+      editModal?.classList.add('hidden');
+    });
+
+    editForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nameInput = document.getElementById('shelf-name');
+      const descriptionInput = document.getElementById('shelf-description');
+      const isPublicInput = document.getElementById('is-public');
+
+      if (!(nameInput instanceof HTMLInputElement) || 
+          !(descriptionInput instanceof HTMLTextAreaElement) || 
+          !(isPublicInput instanceof HTMLInputElement)) {
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from('soup_shelves')
+          .update({
+            name: nameInput.value,
+            description: descriptionInput.value,
+            is_public: isPublicInput.checked
+          })
+          .eq('id', shelfId);
+
+        if (error) throw error;
+
+        // Refresh the page to show updates
+        window.location.reload();
+      } catch (error) {
+        console.error('Error updating shelf:', error);
+        alert('Failed to update shelf. Please try again.');
+      }
+    });
+  </script>
+</Layout> 

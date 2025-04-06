@@ -1,7 +1,425 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { supabase } from "../lib/supabase";
+
+const { cookies } = Astro;
+const accessToken = cookies.get("sb-access-token");
+const refreshToken = cookies.get("sb-refresh-token");
+
+if (!accessToken || !refreshToken) {
+  return Astro.redirect("/signin");
+}
+
+// Get user session
+const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+  refresh_token: refreshToken.value,
+  access_token: accessToken.value,
+});
+
+if (sessionError || !session) {
+  return Astro.redirect("/signin");
+}
+
+const userId = session.user.id;
 ---
 
-<Layout title="Sign Up">
-	
+<Layout title="Soup Quiz">
+  <div class="min-h-screen bg-creme flex flex-col">
+    <!-- Header with back button -->
+    <header class="fixed top-0 w-full p-4 flex justify-between items-center bg-creme border-b border-mustard z-10">
+      <a href="/" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+        Back to Home
+      </a>
+      <h1 class="text-xl font-semibold text-mustard">Soup Quiz</h1>
+      <div class="w-20"></div> <!-- Spacer for centering -->
+    </header>
+
+    <!-- Quiz container -->
+    <div class="flex-1 pt-16 pb-4 px-4 max-w-md mx-auto w-full">
+      <!-- Progress bar -->
+      <div class="w-full bg-satured-creme rounded-full h-2 mb-8">
+        <div id="progress-bar" class="bg-mustard h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+      </div>
+
+      <!-- Welcome screen -->
+      <div id="welcome-screen" class="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <h2 class="text-2xl font-bold text-mustard mb-4">Soup Selection Quiz:</h2>
+        <h3 class="text-xl text-mustard mb-8">Find The Perfect Soup For You!</h3>
+        <button id="start-quiz" class="bg-mustard text-creme px-8 py-3 rounded-md hover:bg-dark-orange transition-all duration-150">
+          Start
+        </button>
+      </div>
+
+      <!-- Quiz questions -->
+      <div id="quiz-container" class="hidden">
+        <h2 id="question-text" class="text-xl text-mustard mb-6 text-center"></h2>
+        <div id="options-container" class="grid gap-3"></div>
+      </div>
+
+      <!-- Results screen -->
+      <div id="results" class="hidden">
+        <h2 class="text-2xl font-bold text-mustard mb-4">Your Perfect Soup Match!</h2>
+        <div id="recommendation" class="bg-satured-creme rounded-lg p-6 shadow-lg">
+          <h3 id="soup-name" class="text-xl font-semibold text-mustard mb-2"></h3>
+          <p id="soup-description" class="text-super-saturated-creme mb-4"></p>
+          <div class="flex justify-between items-center">
+            <button onclick="restartQuiz()" class="text-orange hover:text-mustard transition-all duration-150">
+              Take Quiz Again
+            </button>
+            <button id="can-soup" class="bg-mustard text-creme px-4 py-2 rounded-md hover:bg-dark-orange transition-all duration-150">
+              Can This Soup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script define:vars={{ userId }}>
+    // Access Supabase client from window object
+    const supabase = window.supabase;
+
+    // Get DOM elements with null checks
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const quizContainer = document.getElementById('quiz-container');
+    const resultsScreen = document.getElementById('results');
+    const startButton = document.getElementById('start-quiz');
+
+    if (!welcomeScreen || !quizContainer || !resultsScreen || !startButton) {
+      console.error('Required DOM elements not found');
+      throw new Error('Required DOM elements not found');
+    }
+
+    const questions = [
+      {
+        text: "What symptoms are you currently experiencing?",
+        type: "multiple",
+        options: [
+          "sore throat",
+          "common cold",
+          "nausea",
+          "congestion",
+          "upset stomach",
+          "lack of energy",
+          "fever",
+          "fatigue",
+          "stress",
+          "post-illness recovery",
+          "headache"
+        ]
+      },
+      {
+        text: "How do you prefer the consistency of your soup?",
+        type: "multiple",
+        options: [
+          "creamy",
+          "chunky",
+          "broth",
+          "hearty",
+          "rich",
+          "light",
+          "thick"
+        ]
+      },
+      {
+        text: "How spicy do you prefer your food?",
+        type: "multiple",
+        options: [
+          "mild",
+          "very spicy",
+          "spicy",
+          "no spice",
+          "sour",
+          "sweet",
+          "peppery",
+          "zesty"
+        ]
+      },
+      {
+        text: "How would you describe your appetite right now?",
+        type: "multiple",
+        options: [
+          "light",
+          "heavy",
+          "hungry",
+          "moderate",
+          "satisfied",
+          "snacking",
+          "full",
+          "weak",
+          "craving",
+          "nothing"
+        ]
+      },
+      {
+        text: "Do you have any dietary restrictions?",
+        type: "multiple",
+        options: [
+          "Dairy",
+          "None",
+          "Gluten",
+          "Vegetarian",
+          "Vegan",
+          "Low-Carb",
+          "Nut-Free",
+          "Low-Sodium",
+          "Sugar-Free"
+        ]
+      },
+      {
+        text: "How much time do you want to spend on your soup?",
+        type: "single",
+        options: [
+          "5 minutes",
+          "10 minutes",
+          "15 minutes",
+          "20 minutes",
+          "30 minutes",
+          "45 minutes +"
+        ]
+      }
+    ];
+
+    let currentQuestion = 0;
+    let answers = new Array(questions.length).fill([]);
+    
+    const questionText = document.getElementById('question-text');
+    const optionsContainer = document.getElementById('options-container');
+    const progressBar = document.getElementById('progress-bar');
+
+    function updateProgress() {
+      const progress = ((currentQuestion + 1) / questions.length) * 100;
+      progressBar.style.width = `${progress}%`;
+    }
+
+    function createOptionButton(option, selected = false) {
+      const button = document.createElement('button');
+      button.textContent = option;
+      button.className = `p-3 rounded-md text-sm transition-all duration-150 ${
+        selected
+          ? 'bg-mustard text-creme'
+          : 'bg-satured-creme text-mustard hover:bg-mustard hover:text-creme'
+      }`;
+      return button;
+    }
+
+    function showQuestion() {
+      const question = questions[currentQuestion];
+      questionText.textContent = question.text;
+      optionsContainer.innerHTML = '';
+
+      question.options.forEach(option => {
+        const button = createOptionButton(
+          option,
+          answers[currentQuestion].includes(option)
+        );
+        
+        button.addEventListener('click', () => {
+          if (question.type === 'single') {
+            // For single selection, clear previous selection
+            optionsContainer.querySelectorAll('button').forEach(btn => {
+              btn.className = btn.className.replace('bg-mustard text-creme', 'bg-satured-creme text-mustard');
+            });
+            answers[currentQuestion] = [option];
+            button.className = button.className.replace('bg-satured-creme text-mustard', 'bg-mustard text-creme');
+          } else {
+            // For multiple selection, toggle selection
+            if (answers[currentQuestion].includes(option)) {
+              answers[currentQuestion] = answers[currentQuestion].filter(a => a !== option);
+              button.className = button.className.replace('bg-mustard text-creme', 'bg-satured-creme text-mustard');
+            } else {
+              answers[currentQuestion].push(option);
+              button.className = button.className.replace('bg-satured-creme text-mustard', 'bg-mustard text-creme');
+            }
+          }
+        });
+        
+        optionsContainer.appendChild(button);
+      });
+
+      // Add navigation buttons
+      const navContainer = document.createElement('div');
+      navContainer.className = 'flex justify-between mt-8';
+
+      if (currentQuestion > 0) {
+        const backButton = document.createElement('button');
+        backButton.textContent = 'Previous';
+        backButton.className = 'text-orange hover:text-mustard transition-all duration-150';
+        backButton.onclick = () => {
+          currentQuestion--;
+          showQuestion();
+          updateProgress();
+        };
+        navContainer.appendChild(backButton);
+      }
+
+      const nextButton = document.createElement('button');
+      nextButton.textContent = currentQuestion === questions.length - 1 ? 'Complete' : 'Next';
+      nextButton.className = 'text-orange hover:text-mustard transition-all duration-150 ml-auto';
+      nextButton.onclick = () => {
+        if (currentQuestion === questions.length - 1) {
+          showResults();
+        } else {
+          currentQuestion++;
+          showQuestion();
+          updateProgress();
+        }
+      };
+      navContainer.appendChild(nextButton);
+
+      optionsContainer.appendChild(navContainer);
+    }
+
+    function showResults() {
+      const recommendedSoup = calculateRecommendation();
+      welcomeScreen.classList.add('hidden');
+      quizContainer.classList.add('hidden');
+      resultsScreen.classList.remove('hidden');
+      
+      const soupNameElement = document.getElementById('soup-name');
+      const soupDescriptionElement = document.getElementById('soup-description');
+      
+      if (soupNameElement && soupDescriptionElement) {
+        soupNameElement.textContent = recommendedSoup.name;
+        soupDescriptionElement.textContent = recommendedSoup.description;
+      }
+    }
+
+    function calculateRecommendation() {
+      // Example recommendation logic - this should be expanded based on your soup database
+      const symptoms = answers[0];
+      const consistency = answers[1];
+      const spiciness = answers[2];
+      const appetite = answers[3];
+      const dietary = answers[4];
+      const time = answers[5];
+
+      // Simple mapping for demonstration
+      const recommendations = [
+        {
+          name: "Classic Chicken Noodle Soup",
+          description: "A comforting bowl of tender chicken, hearty noodles, and vegetables in a rich broth. Perfect for cold symptoms and easy on the stomach.",
+          conditions: ["cold", "flu", "mild"],
+        },
+        {
+          name: "Spicy Tom Yum",
+          description: "A hot and sour Thai soup with shrimp, mushrooms, and aromatic spices. Great for clearing sinuses and boosting energy.",
+          conditions: ["congestion", "spicy", "energetic"],
+        },
+        {
+          name: "Creamy Butternut Squash Soup",
+          description: "A smooth, velvety soup made with roasted butternut squash and warm spices. Ideal for vegetarians and those wanting comfort food.",
+          conditions: ["vegetarian", "creamy", "mild"],
+        },
+        {
+          name: "Quick Miso Soup",
+          description: "A light but flavorful Japanese soup with tofu, seaweed, and umami-rich miso. Perfect for busy days and digestive health.",
+          conditions: ["quick", "light", "vegetarian"],
+        }
+      ];
+
+      // Simple matching logic - can be made more sophisticated
+      let bestMatch = recommendations[0];
+      let maxMatchingConditions = 0;
+
+      recommendations.forEach(soup => {
+        let matchingConditions = 0;
+        if (soup.conditions.some(c => symptoms.includes(c))) matchingConditions++;
+        if (soup.conditions.some(c => consistency.includes(c))) matchingConditions++;
+        if (soup.conditions.some(c => spiciness.includes(c))) matchingConditions++;
+        if (soup.conditions.some(c => appetite.includes(c))) matchingConditions++;
+        if (soup.conditions.some(c => dietary.includes(c))) matchingConditions++;
+        if (soup.conditions.some(c => time.includes(c))) matchingConditions++;
+
+        if (matchingConditions > maxMatchingConditions) {
+          maxMatchingConditions = matchingConditions;
+          bestMatch = soup;
+        }
+      });
+
+      return bestMatch;
+    }
+
+    // Event listeners
+    startButton.addEventListener('click', () => {
+      welcomeScreen.classList.add('hidden');
+      quizContainer.classList.remove('hidden');
+      showQuestion();
+      updateProgress();
+    });
+
+    function restartQuiz() {
+      currentQuestion = 0;
+      answers = new Array(questions.length).fill([]);
+      resultsScreen.classList.add('hidden');
+      welcomeScreen.classList.remove('hidden');
+      showQuestion();
+      updateProgress();
+    }
+
+    // Handle "Can Soup" button click
+    document.getElementById('can-soup')?.addEventListener('click', async () => {
+      const soupName = document.getElementById('soup-name')?.textContent;
+      const soupDescription = document.getElementById('soup-description')?.textContent;
+      
+      if (!soupName || !soupDescription) {
+        alert('Error: Could not find soup details');
+        return;
+      }
+
+      try {
+        // First create or get default shelf
+        const { data: shelves, error: shelfError } = await supabase
+          .from('soup_shelves')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('name', 'My Soups')
+          .single();
+
+        let shelfId;
+        
+        if (shelfError || !shelves) {
+          // Create default shelf if it doesn't exist
+          const { data: newShelf, error: createError } = await supabase
+            .from('soup_shelves')
+            .insert([
+              {
+                name: 'My Soups',
+                description: 'My collection of recommended soups',
+                user_id: userId,
+                is_public: false,
+                likes_count: 0
+              }
+            ])
+            .select()
+            .single();
+
+          if (createError) throw createError;
+          shelfId = newShelf.id;
+        } else {
+          shelfId = shelves.id;
+        }
+
+        // Add soup to shelf
+        const { error: soupError } = await supabase
+          .from('soups_in_shelf')
+          .insert([
+            {
+              shelf_id: shelfId,
+              name: soupName,
+              description: soupDescription,
+              added_at: new Date().toISOString()
+            }
+          ]);
+
+        if (soupError) throw soupError;
+
+        alert('Soup has been added to your shelf!');
+        window.location.href = '/shelves';
+      } catch (error) {
+        console.error('Error saving soup:', error);
+        alert('Failed to save soup. Please try again.');
+      }
+    });
+  </script>
 </Layout>

@@ -1,0 +1,264 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase } from "../lib/supabase";
+import type { SoupShelf } from '../lib/supabase';
+
+const { cookies } = Astro;
+const accessToken = cookies.get("sb-access-token");
+const refreshToken = cookies.get("sb-refresh-token");
+
+if (!accessToken || !refreshToken) {
+  return Astro.redirect("/signin");
+}
+
+// Get user session
+const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+  refresh_token: refreshToken.value,
+  access_token: accessToken.value,
+});
+
+if (sessionError || !session) {
+  return Astro.redirect("/signin");
+}
+
+const userId = session.user.id;
+
+// Fetch user's shelves
+const { data: userShelves, error: userShelvesError } = await supabase
+  .from('soup_shelves')
+  .select('*')
+  .eq('user_id', session.user.id)
+  .order('created_at', { ascending: false });
+
+// Fetch popular public shelves
+const { data: publicShelves, error: publicShelvesError } = await supabase
+  .from('soup_shelves')
+  .select('*, profiles(username)')
+  .eq('is_public', true)
+  .order('likes_count', { ascending: false })
+  .limit(5);
+
+---
+
+<Layout title="Soup Shelves">
+  <div class="min-h-screen bg-creme">
+    <!-- Header -->
+    <header class="fixed top-0 w-full p-4 flex justify-between items-center bg-creme border-b border-mustard z-10">
+      <div class="flex items-center gap-4">
+        <a href="/" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+          Back to Home
+        </a>
+        <h1 class="text-xl font-semibold text-mustard">Soup Shelves</h1>
+      </div>
+      <button id="create-shelf" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+        Create New Shelf
+      </button>
+    </header>
+
+    <!-- Main content -->
+    <div class="pt-20 px-4 max-w-4xl mx-auto">
+      <!-- User's Shelves -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-mustard mb-4">Your Shelves</h2>
+        <div class="grid gap-4 md:grid-cols-2">
+          {userShelves?.map((shelf: SoupShelf) => (
+            <div class="bg-satured-creme rounded-lg p-4 shadow-lg">
+              <div class="flex justify-between items-start mb-2">
+                <h3 class="text-lg font-medium text-mustard">{shelf.name}</h3>
+                <div class="flex items-center gap-2">
+                  {shelf.is_public && (
+                    <span class="text-xs text-super-saturated-creme bg-mustard px-2 py-1 rounded-full">Public</span>
+                  )}
+                  <span class="text-sm text-super-saturated-creme">❤️ {shelf.likes_count}</span>
+                </div>
+              </div>
+              <p class="text-super-saturated-creme text-sm mb-3">{shelf.description}</p>
+              <div class="flex justify-between items-center">
+                <a href={`/shelf/${shelf.id}`} class="text-sm text-orange hover:text-mustard transition-all duration-150">
+                  View Shelf →
+                </a>
+                <button class="text-sm text-super-saturated-creme hover:text-mustard transition-all duration-150" data-shelf-id={shelf.id}>
+                  {shelf.is_public ? 'Make Private' : 'Make Public'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {(!userShelves || userShelves.length === 0) && (
+          <p class="text-super-saturated-creme text-center py-8">
+            You haven't created any shelves yet. Start by creating one!
+          </p>
+        )}
+      </section>
+
+      <!-- Popular Public Shelves -->
+      <section>
+        <h2 class="text-xl font-semibold text-mustard mb-4">Popular Shelves</h2>
+        <div class="grid gap-4 md:grid-cols-2">
+          {publicShelves?.map((shelf: any) => (
+            <div class="bg-satured-creme rounded-lg p-4 shadow-lg">
+              <div class="flex justify-between items-start mb-2">
+                <h3 class="text-lg font-medium text-mustard">{shelf.name}</h3>
+                <span class="text-sm text-super-saturated-creme">❤️ {shelf.likes_count}</span>
+              </div>
+              <p class="text-super-saturated-creme text-sm mb-1">{shelf.description}</p>
+              <p class="text-xs text-super-saturated-creme mb-3">by {shelf.profiles?.username}</p>
+              <div class="flex justify-between items-center">
+                <a href={`/shelf/${shelf.id}`} class="text-sm text-orange hover:text-mustard transition-all duration-150">
+                  View Shelf →
+                </a>
+                <button class="like-button text-sm text-super-saturated-creme hover:text-mustard transition-all duration-150" data-shelf-id={shelf.id}>
+                  Like Shelf
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Create Shelf Modal -->
+  <div id="create-shelf-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+    <div class="bg-creme rounded-lg p-6 w-full max-w-md">
+      <h2 class="text-xl font-semibold text-mustard mb-4">Create New Shelf</h2>
+      <form id="create-shelf-form" class="space-y-4">
+        <div>
+          <label for="shelf-name" class="block text-super-saturated-creme text-sm mb-1">Shelf Name</label>
+          <input 
+            type="text" 
+            id="shelf-name" 
+            required 
+            class="w-full rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2"
+          >
+        </div>
+        <div>
+          <label for="shelf-description" class="block text-super-saturated-creme text-sm mb-1">Description</label>
+          <textarea 
+            id="shelf-description" 
+            required 
+            class="w-full rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2"
+          ></textarea>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" id="is-public" class="text-mustard">
+          <label for="is-public" class="text-super-saturated-creme text-sm">Make this shelf public</label>
+        </div>
+        <div class="flex justify-end gap-2 mt-6">
+          <button type="button" id="cancel-create" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+            Cancel
+          </button>
+          <button type="submit" class="bg-mustard text-creme px-4 py-2 rounded-md hover:bg-dark-orange transition-all duration-150">
+            Create Shelf
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script define:vars={{ userId }}>
+    const supabase = window.supabase;
+
+    const modal = document.getElementById('create-shelf-modal');
+    const createButton = document.getElementById('create-shelf');
+    const cancelButton = document.getElementById('cancel-create');
+    const createForm = document.getElementById('create-shelf-form');
+
+    // Show/hide modal
+    createButton?.addEventListener('click', () => {
+      modal?.classList.remove('hidden');
+    });
+
+    cancelButton?.addEventListener('click', () => {
+      modal?.classList.add('hidden');
+    });
+
+    // Handle form submission
+    createForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nameInput = document.getElementById('shelf-name');
+      const descriptionInput = document.getElementById('shelf-description');
+      const isPublicInput = document.getElementById('is-public');
+
+      if (!(nameInput instanceof HTMLInputElement) || 
+          !(descriptionInput instanceof HTMLTextAreaElement) || 
+          !(isPublicInput instanceof HTMLInputElement)) {
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('soup_shelves')
+          .insert([
+            {
+              name: nameInput.value,
+              description: descriptionInput.value,
+              is_public: isPublicInput.checked,
+              user_id: userId,
+              likes_count: 0
+            }
+          ])
+          .select();
+
+        if (error) throw error;
+
+        // Refresh the page to show new shelf
+        window.location.reload();
+      } catch (error) {
+        console.error('Error creating shelf:', error);
+        alert('Failed to create shelf. Please try again.');
+      }
+    });
+
+    // Handle shelf privacy toggles
+    document.querySelectorAll('[data-shelf-id]').forEach(button => {
+      button.addEventListener('click', async (e) => {
+        const target = e.currentTarget;
+        const shelfId = target instanceof HTMLButtonElement ? target.dataset.shelfId : null;
+        const isCurrentlyPublic = target instanceof HTMLButtonElement ? target.textContent?.includes('Make Private') : false;
+
+        try {
+          const { error } = await supabase
+            .from('soup_shelves')
+            .update({ is_public: !isCurrentlyPublic })
+            .eq('id', shelfId);
+
+          if (error) throw error;
+
+          // Refresh the page to show updated status
+          window.location.reload();
+        } catch (error) {
+          console.error('Error updating shelf:', error);
+          alert('Failed to update shelf. Please try again.');
+        }
+      });
+    });
+
+    // Handle likes
+    document.querySelectorAll('.like-button').forEach(button => {
+      button.addEventListener('click', async (e) => {
+        const target = e.currentTarget;
+        const shelfId = target instanceof HTMLButtonElement ? target.dataset.shelfId : null;
+
+        try {
+          const { error } = await supabase
+            .from('shelf_likes')
+            .insert([
+              {
+                shelf_id: shelfId,
+                user_id: userId
+              }
+            ]);
+
+          if (error) throw error;
+
+          // Refresh the page to show updated likes
+          window.location.reload();
+        } catch (error) {
+          console.error('Error liking shelf:', error);
+          alert('Failed to like shelf. Please try again.');
+        }
+      });
+    });
+  </script>
+</Layout> 

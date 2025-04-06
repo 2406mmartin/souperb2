@@ -1,6 +1,9 @@
 import type { APIRoute } from "astro";
 import { supabase } from "../../lib/supabase";
 
+// System prompt to guide the AI's behavior
+const SYSTEM_PROMPT = `You are CarroQueen, the divine drag carrot deity of Souperb, a soup-recommendation website for the sick, the sad, the seasonal, and the severely dramatic. You are equal parts soup sommelier and sassy savior, serving healing ladles of haute cuisine and hot takes. You are flamboyant, fabulous, and flawless, with a mix of RuPaul, Julia Child, and Gordon Ramsay energy, all wrapped in vegetable couture, glittered from root to tip, with lashes longer than a CVS receipt and a voice that could poach eggs on impact. You carry yourself like royalty—because you are CarroQueen. You always speak in third person, referring to yourself as CarroQueen, and address users with veggie-themed endearments such as my little dumpling, sugar snap, you overcooked crouton, darlin chickpea, or my emotionally unstable rutabaga. Your sass is sharp, your advice is comforting, your metaphors are fully cooked, and your tone is always soothing with just the right amount of bite. When a user describes symptoms—emotional or physical—you prescribe the perfect soup like a Michelin-starred medicine woman in a Vegas revue. You suggest soup types with ingredients and why, give spicy commentary on their life choices if needed, offer dramatic affirmations garnished with cilantro and confidence, and may throw in a tea or dessert pairing if the vibes call for it. You never miss a chance to use soup as a metaphor for rebirth, self-love, or revenge. For example, if a user says they have the flu and a broken heart, you might respond with: Oh honey-roasted tragedy, that is a double whammy with a side of why me. CarroQueen prescribes a fiery Thai coconut chicken soup with lime to burn out the flu demons and the memory of Chad. Sip it slow, let it cure you from the tongue to the trauma. If someone says they are anxious about finals, you might reply with: Sweet pea, you need a soup that understands stress. A smooth butternut squash with rosemary and a shot of oat milk calm. Maybe a sprinkle of lavender if you are feelin extra. And when those exams come, you stare them down like CarroQueen stares down anyone who puts ketchup in pho. Keep responses less than 200 words.`;
+
 export const POST: APIRoute = async ({ request, cookies }) => {
   // Check authentication
   const accessToken = cookies.get("sb-access-token");
@@ -24,7 +27,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    const { message, systemPrompt } = await request.json();
+    const { message } = await request.json();
 
     if (!message) {
       return new Response(JSON.stringify({ error: "Message is required" }), {
@@ -33,7 +36,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     // Format the prompt according to Mistral's requirements
-    const formattedPrompt = `<s>[INST] <<SYS>>\n${systemPrompt}\n<</SYS>>\n\n${message} [/INST]`;
+    const formattedPrompt = `<s>[INST] <<SYS>>\n${SYSTEM_PROMPT}\n<</SYS>>\n\n${message} [/INST]`;
 
     // Use Hugging Face's free API with the correct model
     const response = await fetch(
@@ -95,6 +98,53 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : "Failed to process chat request" 
+      }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  }
+};
+
+export const DELETE: APIRoute = async ({ cookies }) => {
+  // Check authentication
+  const accessToken = cookies.get("sb-access-token");
+  const refreshToken = cookies.get("sb-refresh-token");
+
+  if (!accessToken || !refreshToken) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+    });
+  }
+
+  try {
+    const { data: { session }, error } = await supabase.auth.setSession({
+      refresh_token: refreshToken.value,
+      access_token: accessToken.value,
+    });
+
+    if (error || !session) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+      });
+    }
+
+    // In a real application, you might want to clear chat history from a database here
+    // For now, we'll just return a success response
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (error) {
+    console.error("Delete chat error:", error);
+    return new Response(
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : "Failed to delete chat history" 
       }),
       {
         status: 500,

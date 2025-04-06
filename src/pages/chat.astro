@@ -1,0 +1,165 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const { cookies } = Astro;
+const accessToken = cookies.get("sb-access-token");
+const refreshToken = cookies.get("sb-refresh-token");
+
+if (!accessToken || !refreshToken) {
+  return Astro.redirect("/signin");
+}
+---
+
+<Layout title="AI Chat">
+  <div class="h-screen flex flex-col bg-creme pt-16">
+    <div class="flex justify-between items-center p-4">
+      <h1 class="text-xl font-semibold text-mustard">AI Chat</h1>
+      <button 
+        id="clear-chat" 
+        class="text-sm text-orange hover:text-mustard transition-all duration-150"
+      >
+        Clear Chat
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 space-y-4" id="chat-container">
+      <!-- Messages will be dynamically added here -->
+    </div>
+    <div class="border-t border-mustard p-4">
+      <form id="chat-form" class="flex gap-2">
+        <input 
+          type="text" 
+          id="message-input" 
+          placeholder="Type your message..." 
+          class="flex-1 rounded-md bg-satured-creme px-4 py-2 text-sm text-mustard placeholder:text-super-saturated-creme appearance-none outline-mustard focus:outline-2 transition-all duration-50"
+          required
+        />
+        <button 
+          type="submit" 
+          id="send-button"
+          class="bg-mustard text-creme px-4 py-2 rounded-md hover:bg-dark-orange transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <style>
+    .thinking-dots::after {
+      content: '';
+      animation: thinking 1.5s infinite;
+    }
+
+    @keyframes thinking {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+      100% { content: ''; }
+    }
+  </style>
+
+  <script>
+    // Type assertions for DOM elements
+    const chatContainer = document.getElementById('chat-container') as HTMLDivElement;
+    const chatForm = document.getElementById('chat-form') as HTMLFormElement;
+    const messageInput = document.getElementById('message-input') as HTMLInputElement;
+    const sendButton = document.getElementById('send-button') as HTMLButtonElement;
+    const clearChatButton = document.getElementById('clear-chat') as HTMLButtonElement;
+
+    // Function to add a message to the chat
+    function addMessage(content: string, isUser = false) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+      
+      const messageBubble = document.createElement('div');
+      messageBubble.className = `max-w-[70%] rounded-lg p-3 ${
+        isUser 
+          ? 'bg-mustard text-creme' 
+          : 'bg-satured-creme text-mustard'
+      }`;
+      messageBubble.textContent = content;
+      
+      messageDiv.appendChild(messageBubble);
+      chatContainer.appendChild(messageDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // Function to show loading animation
+    function showLoading() {
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'flex justify-start';
+      
+      const loadingBubble = document.createElement('div');
+      loadingBubble.className = 'max-w-[70%] rounded-lg p-3 bg-satured-creme text-mustard thinking-dots';
+      loadingBubble.textContent = 'CarroQueen is thinking';
+      
+      loadingDiv.appendChild(loadingBubble);
+      chatContainer.appendChild(loadingDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      
+      return loadingDiv;
+    }
+
+    // Function to delete a chat
+    async function deleteChat() {
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          chatContainer.innerHTML = '';
+          addMessage('Chat history cleared', false);
+        }
+      } catch (error) {
+        console.error('Error deleting chat:', error);
+      }
+    }
+
+    // Add click event listener to clear chat button
+    clearChatButton.addEventListener('click', deleteChat);
+
+    // Handle form submission
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = messageInput.value.trim();
+      if (!message) return;
+
+      // Add user message
+      addMessage(message, true);
+      messageInput.value = '';
+      
+      // Disable send button and show loading
+      sendButton.disabled = true;
+      const loadingElement = showLoading();
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ message }),
+        });
+
+        // Remove loading element
+        loadingElement.remove();
+
+        if (response.ok) {
+          const data = await response.json();
+          addMessage(data.response, false);
+        } else {
+          addMessage('Sorry, there was an error processing your message.', false);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        loadingElement.remove();
+        addMessage('Sorry, there was an error processing your message.', false);
+      } finally {
+        // Re-enable send button
+        sendButton.disabled = false;
+      }
+    });
+  </script>
+</Layout> 
