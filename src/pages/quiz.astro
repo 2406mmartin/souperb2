@@ -52,7 +52,8 @@ const userId = session.user.id;
 
       <!-- Quiz questions -->
       <div id="quiz-container" class="hidden">
-        <h2 id="question-text" class="text-xl text-true-blue mb-6 text-center"></h2>
+        <h2 id="question-text" class="text-xl font-bold text-true-blue mb-6 text-center"></h2>
+        <h2 id="question-text" class="text-lg -mt-4 text-true-blue mb-6 text-center">check all that apply</h2>
         <div id="options-container" class="grid gap-3"></div>
       </div>
 
@@ -270,7 +271,7 @@ const userId = session.user.id;
       button.className = `p-3 rounded-md text-sm transition-all duration-150 ${
         selected
           ? 'bg-mustard text-creme'
-          : 'bg-satured-creme text-mustard hover:bg-mustard hover:text-creme'
+          : 'bg-new-blue text-light-blue hover:bg-mustard hover:text-creme'
       }`;
       return button;
     }
@@ -851,7 +852,7 @@ const userId = session.user.id;
       const soupIngredientElement = document.getElementById('soup-ingredients');
       soupIngredientElement.style.display = "block";
     }
-    
+
     const showIngredientsButton = document.getElementById('show-ingredients-btn');
     showIngredientsButton.addEventListener('click', showIngredients);
 

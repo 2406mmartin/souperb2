@@ -20,13 +20,13 @@ const isChatPage = url.pathname === '/chat';
 		{isAuthenticated && (
 			<header class="fixed top-0 w-full p-4 flex justify-between items-center border-b border-mustard">
 				{isChatPage ? (
-					<a href="/" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+					<a href="/" class="text-sm text-satured-creme hover:text-mustard transition-all duration-150">
 						Back to Home
 					</a>
 				) : (
 					<div></div>
 				)}
-				<a href="/api/auth/signout" class="text-sm text-orange hover:text-mustard transition-all duration-150">
+				<a href="/api/auth/signout" class="text-sm text-satured-creme hover:text-mustard transition-all duration-150">
 					Logout
 				</a>
 			</header>
