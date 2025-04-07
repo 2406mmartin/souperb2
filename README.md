@@ -4,7 +4,7 @@ Souperb offers a variety of features to enhance your soup experience. Users can 
 
 # Credits
 
-Sean Gallagher - Backend
-Matthew Martin - Frontend
-Marcella Tebeau - Design
-Elle Hamilton - Design
+* Sean Gallagher - Backend
+* Matthew Martin - Frontend
+* Marcella Tebeau - Design
+* Elle Hamilton - Design
